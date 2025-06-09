@@ -1,48 +1,36 @@
 import os
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
-from PIL import Image # Import Pillow for image processing
-import io # To handle image in memory
-from flask_cors import CORS # Import Flask-CORS to handle Cross-Origin Resource Sharing
-import pytesseract # Import pytesseract for OCR
-import re # Import regular expressions for data parsing
+from PIL import Image
+import io
+from flask_cors import CORS
+import pytesseract
+import re
 
 app = Flask(__name__)
-CORS(app) # Enable CORS
+CORS(app)
 
 # --- Configuration ---
 PROCESSED_UPLOAD_FOLDER = 'processed_uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 app.config['PROCESSED_UPLOAD_FOLDER'] = PROCESSED_UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # Max upload size: 20 MB
+app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 
-# Create the processed_uploads directory if it doesn't exist
 os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
 
-# --- Tesseract OCR Configuration (IMPORTANT for Windows users) ---
-# If Tesseract is not in your system's PATH, you need to specify its path.
-# Example for Windows:
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-# For macOS/Linux, Tesseract is usually found in PATH, so this line might not be needed
-# or you can set it to the path if it's installed in a non-standard location.
-
 # --- OCR Language Setting ---
-# You can specify multiple languages by joining their codes with a '+'
-# 'eng' is for English, 'tha' is for Thai. Make sure you have installed
-# the corresponding language data packs for Tesseract.
 OCR_LANGUAGES = 'eng+tha'
 
 # --- Helper Function for File Type Validation ---
 def allowed_file(filename):
-    """Checks if the uploaded file has an allowed extension."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- Data Parsing Function ---
-def parse_receipt_data(text):
+# --- Data Parsing Function (Now with conditional logic) ---
+def parse_receipt_data(text, receipt_type="PTT-Kbank"):
     """
-    Parses the raw OCR text to extract structured receipt data.
+    Parses the raw OCR text to extract structured receipt data based on type.
     This is a basic rule-based parsing and can be significantly improved
     with more advanced NLP or machine learning models.
     """
@@ -50,25 +38,23 @@ def parse_receipt_data(text):
         "merchant_name": "N/A",
         "date": "N/A",
         "total_amount": "N/A",
-        "currency": "N/A"
+        "receipt_type_used": receipt_type # For debugging, shows which config was used
     }
 
     lines = text.split('\n')
     non_empty_lines = [line.strip() for line in lines if line.strip()]
 
-    # Attempt to extract Merchant Name: Simple approach - first non-empty line
+    # --- Generic Parsing Logic (Fallback) ---
     if non_empty_lines:
         parsed_data["merchant_name"] = non_empty_lines[0]
 
     # Attempt to extract Date
-    # Common date formats (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, etc.)
-    # This regex is a starting point; real-world receipts are complex
     date_patterns = [
-        r'\d{1,2}/\d{1,2}/\d{2,4}',  # DD/MM/YY or DD/MM/YYYY
-        r'\d{1,2}-\d{1,2}-\d{2,4}',  # DD-MM-YY or DD-MM-YYYY
-        r'\d{4}-\d{1,2}-\d{1,2}',  # YYYY-MM-DD
-        r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2},? \d{2,4}', # Month DD, YYYY
-        r'\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{2,4}' # DD Month YYYY
+        r'\d{1,2}/\d{1,2}/\d{2,4}',
+        r'\d{1,2}-\d{1,2}-\d{2,4}',
+        r'\d{4}-\d{1,2}-\d{1,2}',
+        r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{1,2},? \d{2,4}', # Added .? for abbreviation
+        r'\d{1,2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.? \d{2,4}'
     ]
     for line in non_empty_lines:
         for pattern in date_patterns:
@@ -80,38 +66,48 @@ def parse_receipt_data(text):
             break
 
     # Attempt to extract Total Amount and Currency
-    # This regex tries to find "Total", "Amount", "Balance" etc., followed by currency symbols and numbers.
-    # It prioritizes lines with "Total" or "TOTAL"
-    total_patterns = [
-        r'(?:Total|TOTAL|Sum|Amount|Balance|Grand Total|Net Amount)[:\s]*(\$?|\€|£|฿|USD|EUR|THB)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)',
-        r'(\$?|\€|£|฿|USD|EUR|THB)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)' # Currency then number
+    total_patterns_generic = [
+        r'(?:Total|TOTAL|Sum|Amount|Balance|Grand Total|Net Amount|TOTAL THB)[:\s]*(\$?|\€|£|฿|USD|EUR|THB)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)',
+        r'(\$?|\€|£|฿|USD|EUR|THB)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)'
     ]
 
-    for line in reversed(non_empty_lines): # Search from bottom up, as total is usually at the end
-        for pattern in total_patterns:
+    # --- Conditional Parsing Logic based on receipt_type ---
+    if receipt_type == "Bangchak-Kbank":
+        # Example: For grocery receipts, we might look for "GROCERY TOTAL" or similar
+        # and prioritize different patterns.
+        # This is a placeholder for more sophisticated logic.
+        total_patterns_grocery = [
+            r'(?:GROCERY TOTAL|SUBTOTAL|TOTAL)[:\s]*(\$?|\€|£|฿|USD|EUR|THB)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)',
+            r'GRAND TOTAL[:\s]*(\$?|\€|£|฿|USD|EUR|THB)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)'
+        ]
+        # Try grocery specific patterns first
+        for line in reversed(non_empty_lines):
+            for pattern in total_patterns_grocery:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    currency = match.group(1).strip() if match.group(1) else ""
+                    amount = match.group(2).replace(',', '')
+                    if not currency:
+                        if '฿' in line or 'THB' in line: currency = '฿'
+                        elif '$' in line or 'USD' in line: currency = '$'
+                        elif '€' in line or 'EUR' in line: currency = '€'
+                        elif '£' in line or 'GBP' in line: currency = '£'
+                    parsed_data["total_amount"] = amount
+                    parsed_data["currency"] = currency if currency else "N/A"
+                    return parsed_data # Return immediately if found
+
+    # Fallback to generic total parsing if specific type didn't find it or for generic type
+    for line in reversed(non_empty_lines):
+        for pattern in total_patterns_generic:
             match = re.search(pattern, line, re.IGNORECASE)
             if match:
-                # Group 1 is currency symbol/code, Group 2 is the number
                 currency = match.group(1).strip() if match.group(1) else ""
-                amount = match.group(2).replace(',', '') # Remove commas for consistency
-
-                # Basic currency mapping for display
-                if not currency:
-                    # Try to infer from common symbols/words if not explicitly found
-                    if '฿' in line or 'THB' in line:
-                        currency = '฿'
-                    elif '$' in line or 'USD' in line:
-                        currency = '$'
-                    elif '€' in line or 'EUR' in line:
-                        currency = '€'
-                    elif '£' in line or 'GBP' in line:
-                        currency = '£'
-
+                amount = match.group(2).replace(',', '')
                 parsed_data["total_amount"] = amount
                 parsed_data["currency"] = currency if currency else "N/A"
-                return parsed_data # Return immediately once a total is found
+                return parsed_data # Return immediately if found
 
-    return parsed_data # Return parsed data even if no total is found
+    return parsed_data
 
 # --- Routes ---
 
@@ -125,32 +121,32 @@ def process_image():
         return jsonify({'error': 'No file part in the request'}), 400
 
     file = request.files['receipt_image']
+    receipt_type = request.form.get('receipt_type', 'generic') # Get receipt type, default to 'generic'
 
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
     if file and allowed_file(file.filename):
         try:
-            # Read the image into memory
             image_bytes = file.read()
             image = Image.open(io.BytesIO(image_bytes))
 
-            # --- Step 2: Image Pre-processing ---
-            processed_image = image.convert('L') # Convert to grayscale
-            max_dim = 1024 # pixels
+            # --- Image Pre-processing ---
+            processed_image = image.convert('L')
+            max_dim = 1024
             if processed_image.width > max_dim or processed_image.height > max_dim:
                 processed_image.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
 
-            # --- Step 3: Perform OCR ---
+            # --- Perform OCR ---
             extracted_text = pytesseract.image_to_string(processed_image, lang=OCR_LANGUAGES)
 
-            # --- Step 4: Data Parsing ---
-            parsed_data = parse_receipt_data(extracted_text)
+            # --- Data Parsing (now passes receipt_type) ---
+            parsed_data = parse_receipt_data(extracted_text, receipt_type)
 
             return jsonify({
                 'message': 'Image processed, text extracted, and data parsed successfully!',
                 'extracted_text': extracted_text,
-                'parsed_data': parsed_data, # Include the structured parsed data
+                'parsed_data': parsed_data,
                 'status': 'complete'
             }), 200
 
