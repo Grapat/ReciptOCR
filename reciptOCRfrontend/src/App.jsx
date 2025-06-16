@@ -24,10 +24,10 @@ function App() {
    * Handles the file input change event.
    * Clears previous results, sets up image preview, and stores the selected file.
    * Also resets editable fields when a new image is chosen.
-   * @param {Event} event - The DOM event from the file input.
+   * @param {Event} e - The DOM event from the file input.
    */
-  const handleImageChange = (event) => {
-    const file = event.target.files[0];
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
 
     // Clear all previous results/messages and reset form states
     setImagePreviewUrl(null);
