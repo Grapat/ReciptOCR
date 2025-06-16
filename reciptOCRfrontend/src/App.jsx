@@ -162,12 +162,12 @@ function App() {
             Receipt Scanner
           </h1>
           <p className="header-description">
-            Upload an image of your receipt to extract details.
+            อัปโหลดรูปใบเสร็จที่ต้องการดึงข้อมูล
           </p>
 
           {/* Receipt Type Selection */}
           <div className="form-group receipt-type-select">
-            <label htmlFor="receiptType" className="form-label">Select Receipt Type:</label>
+            <label htmlFor="receiptType" className="form-label">เลือกประเภทใบเสร็จ:</label>
             <select
               id="receiptType"
               name="receiptType"
@@ -175,10 +175,10 @@ function App() {
               value={receiptType}
               onChange={handleReceiptTypeChange}
             >
-              <option value="PTT-Kbank">ปตท.-กสิกร</option>
-              <option value="Bangchak-Kbank">บางจาก-กสิกร</option>
-              <option value="Bangchak-Krungthai">บางจาก-กรุงไทย</option>
-              <option value="A5">A5</option>
+              <option value="PTT-Kbank">ปตท. กสิกร</option>
+              <option value="Bangchak-Kbank">บางจาก กสิกร</option>
+              <option value="Bangchak-Krungthai">บางจาก กรุงไทย</option>
+              <option value="A5">ใบเสร็จ A5</option>
               {/* Add more specific types as needed */}
             </select>
           </div>
@@ -192,7 +192,7 @@ function App() {
               accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
               onChange={handleImageChange}
             />
-            <label
+            <button
               htmlFor="imageUpload"
               className="file-input-button"
             >
@@ -214,8 +214,8 @@ function App() {
                 <path d="M12 16V9" />
                 <path d="M18 14l-6-6-6 6" />
               </svg>
-              Choose Receipt Image
-            </label>
+              เลือกรูปใบเสร็จ
+            </button>
           </div>
 
           {/* Status Message */}
@@ -234,7 +234,7 @@ function App() {
                 className="image-preview"
               />
             ) : (
-              <p className="image-preview-placeholder">Your selected image will appear here</p>
+              <p className="image-preview-placeholder">รูปที่เลือกจะมาปรากฏที่นี้</p>
             )}
           </div>
 
@@ -249,16 +249,16 @@ function App() {
                 <span className="spinner"></span> Processing...
               </>
             ) : (
-              'Process Receipt'
+              'ดึงข้อมูลจากภาพ'
             )}
           </button>
 
           {/* Parsed Data Display Area - Now with editable inputs */}
           {parsedData && (
             <div className="parsed-data-container">
-              <h3 className="parsed-data-title">Parsed Data:</h3>
+              <h3 className="parsed-data-title">ข้อมูลหลังแยก:</h3>
               <div className="form-group">
-                <label htmlFor="merchant_name" className="form-label">Merchant Name:</label>
+                <label htmlFor="merchant_name" className="form-label">ชื่อผู้ขาย :</label>
                 <input
                   type="text"
                   id="merchant_name"
@@ -269,7 +269,7 @@ function App() {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="date" className="form-label">Date:</label>
+                <label htmlFor="date" className="form-label">วันที่ :</label>
                 <input
                   type="text"
                   id="date"
@@ -280,7 +280,7 @@ function App() {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="total_amount" className="form-label">Total Amount:</label>
+                <label htmlFor="total_amount" className="form-label">จำนวนเงิน :</label>
                 <input
                   type="text"
                   id="total_amount"
@@ -291,7 +291,7 @@ function App() {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="currency" className="form-label">Currency:</label>
+                <label htmlFor="currency" className="form-label">สกุลเงิน :</label>
                 <input
                   type="text"
                   id="currency"
@@ -305,7 +305,7 @@ function App() {
                 onClick={handleSaveChanges}
                 className="save-button"
               >
-                Save Changes
+                บันทึกข้อมูล
               </button>
             </div>
           )}
@@ -313,7 +313,7 @@ function App() {
           {/* Raw Extracted Text Display Area (Optional, for debugging/full view) */}
           {extractedText && (
             <div className="extracted-text-container">
-              <h3 className="extracted-text-title">Raw Extracted Text:</h3>
+              <h3 className="extracted-text-title">ข้อมูลดิบหลังแยก:</h3>
               <p className="extracted-text-content">{extractedText}</p>
             </div>
           )}
