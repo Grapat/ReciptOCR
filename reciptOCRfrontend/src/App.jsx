@@ -1,293 +1,293 @@
-    import React, { useState } from 'react';
-    import './app.css';
-    // No Firebase imports needed as per your request to run locally without a database.
+import React, { useState } from 'react';
+import './app.css';
 
-    function App() {
-      const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-      const [selectedFile, setSelectedFile] = useState(null);
-      const [statusMessage, setStatusMessage] = useState('');
-      const [isError, setIsError] = useState(false);
-      const [isProcessing, setIsProcessing] = useState(false);
-      const [extractedText, setExtractedText] = useState('');
-      const [parsedData, setParsedData] = useState(null);
-      const [editableFields, setEditableFields] = useState({
-        merchant_name: '',
-        date: '',
-        total_amount: '',
-        currency: 'THB' // Currency is fixed to THB
-      });
-      const [receiptType, setReceiptType] = useState('generic');
+function App() {
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isError, setIsError] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
+  const [parsedData, setParsedData] = useState(null);
+  const [editableFields, setEditableFields] = useState({
+    merchant_name: '',
+    date: '',
+    total_amount: '',
+    currency: 'THB' // Currency is fixed to THB
+  });
+  const [receiptType, setReceiptType] = useState('generic');
 
-      /**
-       * Handles the file input change event.
-       */
-      const handleImageChange = (event) => {
-        const file = event.target.files[0];
-        setImagePreviewUrl(null);
-        setSelectedFile(null);
-        setStatusMessage('');
-        setIsError(false);
-        setIsProcessing(false);
-        setExtractedText('');
-        setParsedData(null);
-        setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+  /**
+   * Handles the file input change event.
+   */
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    setImagePreviewUrl(null);
+    setSelectedFile(null);
+    setStatusMessage('');
+    setIsError(false);
+    setIsProcessing(false);
+    setExtractedText('');
+    setParsedData(null);
+    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
 
-        if (file) {
-          if (!file.type.startsWith('image/')) {
-            setStatusMessage('Please select an image file (PNG, JPG, JPEG, GIF, WEBP).');
-            setIsError(true);
-            return;
-          }
-          const reader = new FileReader();
-          reader.onloadend = () => setImagePreviewUrl(reader.result);
-          reader.readAsDataURL(file);
-          setSelectedFile(file);
-        }
-      };
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setStatusMessage('Please select an image file (PNG, JPG, JPEG, GIF, WEBP).');
+        setIsError(true);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreviewUrl(reader.result);
+      reader.readAsDataURL(file);
+      setSelectedFile(file);
+    }
+  };
 
-      /**
-       * Handles changes in the editable input fields.
-       */
-      const handleFieldChange = (e) => {
-        const { name, value } = e.target;
-        setEditableFields(prevFields => ({ ...prevFields, [name]: value }));
-      };
+  /**
+   * Handles changes in the editable input fields.
+   */
+  const handleFieldChange = (e) => {
+    const { name, value } = e.target;
+    setEditableFields(prevFields => ({ ...prevFields, [name]: value }));
+  };
 
-      /**
-       * Handles changes in the receipt type dropdown.
-       */
-      const handleReceiptTypeChange = (e) => {
-        setReceiptType(e.target.value);
-        setStatusMessage('');
-        setIsError(false);
-        setExtractedText('');
-        setParsedData(null);
-        setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
-      };
+  /**
+   * Handles changes in the receipt type dropdown.
+   */
+  const handleReceiptTypeChange = (e) => {
+    setReceiptType(e.target.value);
+    setStatusMessage('');
+    setIsError(false);
+    setExtractedText('');
+    setParsedData(null);
+    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+  };
 
-      /**
-       * Handles sending the selected image and receipt type to the Flask backend for processing.
-       */
-      const handleProcessReceipt = async () => {
-        if (!selectedFile) {
-          setStatusMessage('Please upload an image first.');
-          setIsError(true);
-          return;
-        }
-
-        setIsProcessing(true);
-        setStatusMessage('Processing image and performing OCR...');
-        setIsError(false);
-        setExtractedText('');
-        setParsedData(null);
-        setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
-
-        const formData = new FormData();
-        formData.append('receipt_image', selectedFile);
-        formData.append('receipt_type', receiptType);
-
-        try {
-          const response = await fetch('http://127.0.0.1:5000/process-image', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            setStatusMessage(data.message);
-            setIsError(false);
-            setExtractedText(data.extracted_text || 'No text extracted.');
-            setParsedData(data.parsed_data);
-            setEditableFields(data.parsed_data);
-          } else {
-            const errorData = await response.json();
-            setStatusMessage(`Error: ${errorData.error || 'Unknown error during processing.'}`);
-            setIsError(true);
-            setExtractedText('');
-            setParsedData(null);
-            setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
-          }
-        } catch (error) {
-          console.error('Network or processing error:', error);
-          setStatusMessage('Failed to connect to the backend or process image. Please check console for details.');
-          setIsError(true);
-          setExtractedText('');
-          setParsedData(null);
-          setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
-        } finally {
-          setIsProcessing(false);
-        }
-      };
-
-      /**
-       * Placeholder function for saving changes (no actual backend/DB interaction in this version).
-       */
-      const handleSaveChanges = () => {
-        setStatusMessage('Changes saved locally! (This version does not save to a database.)');
-        setIsError(false);
-        console.log("Editable Fields:", editableFields);
-      };
-
-      return (
-        <>
-          <div className="app-container">
-            <div className="card-container">
-              <h1 className="header-title">
-                Receipt Scanner
-              </h1>
-              <p className="header-description">
-                Upload an image of your receipt to extract details.
-              </p>
-
-              <div className="form-group receipt-type-select">
-                <label htmlFor="receiptType" className="form-label">Select Receipt Type:</label>
-                <select
-                  id="receiptType"
-                  name="receiptType"
-                  className="form-input"
-                  value={receiptType}
-                  onChange={handleReceiptTypeChange}
-                >
-                  <option value="generic">Generic Receipt</option>
-                  <option value="PTT-Kbank">PTT-Kbank</option>
-                  <option value="Bangchak-Kbank">Bangchak-Kbank</option>
-                  <option value="Bangchak-Krungthai">Bangchak-Krungthai</option>
-                  <option value="A5">A5</option>
-                </select>
-              </div>
-
-              <div className="file-input-wrapper">
-                <input
-                  type="file"
-                  id="imageUpload"
-                  className="file-input-hidden"
-                  accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
-                  onChange={handleImageChange}
-                />
-                <label
-                  htmlFor="imageUpload"
-                  className="file-input-button"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="file-input-icon"
-                  >
-                    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                    <path d="M12 16V9" />
-                    <path d="M18 14l-6-6-6 6" />
-                  </svg>
-                  Choose Receipt Image
-                </label>
-              </div>
-
-              {statusMessage && (
-                <p className={`status-message ${isError ? 'status-message-error' : 'status-message-success'}`}>
-                  {statusMessage}
-                </p>
-              )}
-
-              <div className="image-preview-container">
-                {imagePreviewUrl ? (
-                  <img
-                    src={imagePreviewUrl}
-                    alt="Receipt Preview"
-                    className="image-preview"
-                  />
-                ) : (
-                  <p className="image-preview-placeholder">Your selected image will appear here</p>
-                )}
-              </div>
-
-              <button
-                onClick={handleProcessReceipt}
-                className="process-button"
-                disabled={!selectedFile || isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <span className="spinner"></span> Processing...
-                  </>
-                ) : (
-                  'Process Receipt'
-                )}
-              </button>
-
-              {parsedData && (
-                <div className="parsed-data-container">
-                  <h3 className="parsed-data-title">Parsed Data:</h3>
-                  <div className="form-group">
-                    <label htmlFor="merchant_name" className="form-label">Merchant Name:</label>
-                    <input
-                      type="text"
-                      id="merchant_name"
-                      name="merchant_name"
-                      className="form-input"
-                      value={editableFields.merchant_name}
-                      onChange={handleFieldChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="date" className="form-label">Date:</label>
-                    <input
-                      type="text"
-                      id="date"
-                      name="date"
-                      className="form-input"
-                      value={editableFields.date}
-                      onChange={handleFieldChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="total_amount" className="form-label">Total Amount:</label>
-                    <input
-                      type="text"
-                      id="total_amount"
-                      name="total_amount"
-                      className="form-input"
-                      value={editableFields.total_amount}
-                      onChange={handleFieldChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="currency" className="form-label">Currency:</label>
-                    <input
-                      type="text"
-                      id="currency"
-                      name="currency"
-                      className="form-input"
-                      value={editableFields.currency}
-                      onChange={handleFieldChange}
-                      readOnly
-                    />
-                  </div>
-                  <button
-                    onClick={handleSaveChanges}
-                    className="save-button"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              )}
-
-              {extractedText && (
-                <div className="extracted-text-container">
-                  <h3 className="extracted-text-title">Raw Extracted Text:</h3>
-                  <p className="extracted-text-content">{extractedText}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      );
+  /**
+   * Handles sending the selected image and receipt type to the Flask backend for processing.
+   */
+  const handleProcessReceipt = async () => {
+    if (!selectedFile) {
+      setStatusMessage('Please upload an image first.');
+      setIsError(true);
+      return;
     }
 
-    export default App;
+    setIsProcessing(true);
+    setStatusMessage('Processing image and performing OCR...');
+    setIsError(false);
+    setExtractedText('');
+    setParsedData(null);
+    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+
+    const formData = new FormData();
+    formData.append('receipt_image', selectedFile);
+    formData.append('receipt_type', receiptType);
+
+    try {
+      // --- UPDATED API URL HERE ---
+      const response = await fetch('http://127.0.0.1:5000/api/receipts/process-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStatusMessage(data.message);
+        setIsError(false);
+        setExtractedText(data.extracted_text || 'No text extracted.');
+        setParsedData(data.parsed_data);
+        setEditableFields(data.parsed_data);
+      } else {
+        const errorData = await response.json();
+        setStatusMessage(`Error: ${errorData.error || 'Unknown error during processing.'}`);
+        setIsError(true);
+        setExtractedText('');
+        setParsedData(null);
+        setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+      }
+    } catch (error) {
+      console.error('Network or processing error:', error);
+      setStatusMessage('Failed to connect to the backend or process image. Please check console for details.');
+      setIsError(true);
+      setExtractedText('');
+      setParsedData(null);
+      setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Placeholder function for saving changes (no actual backend/DB interaction in this version).
+   */
+  const handleSaveChanges = () => {
+    setStatusMessage('Changes saved locally! (This version does not save to a database.)');
+    setIsError(false);
+    console.log("Editable Fields:", editableFields);
+  };
+
+  return (
+    <>
+      <div className="app-container">
+        <div className="card-container">
+          <h1 className="header-title">
+            Receipt Scanner
+          </h1>
+          <p className="header-description">
+            Upload an image of your receipt to extract details.
+          </p>
+
+          <div className="form-group receipt-type-select">
+            <label htmlFor="receiptType" className="form-label">Select Receipt Type:</label>
+            <select
+              id="receiptType"
+              name="receiptType"
+              className="form-input"
+              value={receiptType}
+              onChange={handleReceiptTypeChange}
+            >
+              <option value="generic">Generic Receipt</option>
+              <option value="PTT-Kbank">PTT-Kbank</option>
+              <option value="Bangchak-Kbank">Bangchak-Kbank</option>
+              <option value="Bangchak-Krungthai">Bangchak-Krungthai</option>
+              <option value="A5">A5</option>
+            </select>
+          </div>
+
+          <div className="file-input-wrapper">
+            <input
+              type="file"
+              id="imageUpload"
+              className="file-input-hidden"
+              accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
+              onChange={handleImageChange}
+            />
+            <label
+              htmlFor="imageUpload"
+              className="file-input-button"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="file-input-icon"
+              >
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                <path d="M12 16V9" />
+                <path d="M18 14l-6-6-6 6" />
+              </svg>
+              Choose Receipt Image
+            </label>
+          </div>
+
+          {statusMessage && (
+            <p className={`status-message ${isError ? 'status-message-error' : 'status-message-success'}`}>
+              {statusMessage}
+            </p>
+          )}
+
+          <div className="image-preview-container">
+            {imagePreviewUrl ? (
+              <img
+                src={imagePreviewUrl}
+                alt="Receipt Preview"
+                className="image-preview"
+              />
+            ) : (
+              <p className="image-preview-placeholder">Your selected image will appear here</p>
+            )}
+          </div>
+
+          <button
+            onClick={handleProcessReceipt}
+            className="process-button"
+            disabled={!selectedFile || isProcessing}
+          >
+            {isProcessing ? (
+              <>
+                <span className="spinner"></span> Processing...
+              </>
+            ) : (
+              'Process Receipt'
+            )}
+          </button>
+
+          {parsedData && (
+            <div className="parsed-data-container">
+              <h3 className="parsed-data-title">Parsed Data:</h3>
+              <div className="form-group">
+                <label htmlFor="merchant_name" className="form-label">Merchant Name:</label>
+                <input
+                  type="text"
+                  id="merchant_name"
+                  name="merchant_name"
+                  className="form-input"
+                  value={editableFields.merchant_name}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="date" className="form-label">Date:</label>
+                <input
+                  type="text"
+                  id="date"
+                  name="date"
+                  className="form-input"
+                  value={editableFields.date}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="total_amount" className="form-label">Total Amount:</label>
+                <input
+                  type="text"
+                  id="total_amount"
+                  name="total_amount"
+                  className="form-input"
+                  value={editableFields.total_amount}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="currency" className="form-label">Currency:</label>
+                <input
+                  type="text"
+                  id="currency"
+                  name="currency"
+                  className="form-input"
+                  value={editableFields.currency}
+                  onChange={handleFieldChange}
+                  readOnly
+                />
+              </div>
+              <button
+                onClick={handleSaveChanges}
+                className="save-button"
+              >
+                Save Changes
+              </button>
+            </div>
+          )}
+
+          {extractedText && (
+            <div className="extracted-text-container">
+              <h3 className="extracted-text-title">Raw Extracted Text:</h3>
+              <p className="extracted-text-content">{extractedText}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default App;
