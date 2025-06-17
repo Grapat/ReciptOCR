@@ -1,0 +1,34 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log
+yarn-debug.log
+.pnp/
+.pnp.js
+
+# React (Create React App specific)
+build/
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints
+processed_uploads/  # Exclude the folder where processed/debug images are saved
+
+# IDEs
+.idea/
+.vscode/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
