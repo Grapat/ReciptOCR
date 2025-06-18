@@ -1,3 +1,4 @@
+// backend_node/controllers/receiptController.js
 const { spawn } = require("child_process");
 const path = require("path");
 const db = require("../models"); // Import Sequelize models
@@ -11,7 +12,7 @@ exports.processReceipt = async (req, res) => {
   }
 
   const receiptImageBuffer = req.file.buffer;
-  const receiptType = req.body.receipt_type;
+  const receiptType = req.body.receipt_type || "generic";
   const filename = req.file.originalname;
 
   console.log(
@@ -51,17 +52,64 @@ exports.processReceipt = async (req, res) => {
     try {
       const ocrResult = JSON.parse(pythonOutput);
 
-      console.log(
-        "[Controller] OCR processed. Returning data for review, not saving to DB yet."
-      );
+      const parsedData = ocrResult.parsed_data; // This now contains all dynamic fields including EGAT info
+      const extractedText = ocrResult.extracted_text;
+      const debugImageUrl = ocrResult.debug_image_url;
 
-      res.json(ocrResult); // Return the OCR result directly
-    } catch (parseError) {
-      console.error(`[Controller] Error parsing Python output: ${parseError}`);
+      // Prepare data for the Receipt model
+      const receiptData = {
+        merchantName: parsedData.merchant_name || null,
+
+        // Fields from dynamic_parse_ocr
+        gasName: parsedData.gas_name || null,
+        gasProvider: parsedData.gas_provider || null,
+        receiptType: parsedData.receipt_type_used || "generic",
+        gasAddress: parsedData.gas_address || null,
+        gasTaxId: parsedData.gas_tax_id || null,
+        receiptNo: parsedData.receipt_no || null,
+        plateNo: parsedData.plate_no || null,
+        milestone: parsedData.milestone
+          ? parseFloat(parsedData.milestone)
+          : null,
+        gasType: parsedData.gas_type || null,
+
+        // EGAT addresses and Tax ID - now directly from OCR result in Python
+        egatAddressTH: parsedData.egat_address_th || null,
+        egatAddressENG: parsedData.egat_address_eng || null,
+        egatTaxId: parsedData.egat_tax_id || null,
+
+        // Original fields
+        transactionDate:
+          parsedData.date && !isNaN(new Date(parsedData.date))
+            ? new Date(parsedData.date)
+            : null,
+        amount: parsedData.total_amount
+          ? parseFloat(parsedData.total_amount)
+          : null,
+        currency: parsedData.currency || "THB",
+        VAT: parsedData.VAT ? parseFloat(parsedData.VAT) : null,
+        liters: parsedData.liters ? parseFloat(parsedData.liters) : null,
+        rawExtractedText: extractedText || null,
+        templateUsedForOcr: parsedData.receipt_type_used || null,
+        debugImagePath: debugImageUrl || null,
+      };
+
+      // Create a new Receipt record in the database
+      const newReceipt = await db.Receipt.create(receiptData);
+      console.log(`[Controller] Receipt saved to DB with ID: ${newReceipt.id}`);
+
+      // Add the database receipt ID to the response for the frontend
+      ocrResult.parsed_data.db_receipt_id = newReceipt.id;
+
+      res.json(ocrResult);
+    } catch (parseOrDbError) {
+      console.error(
+        `[Controller] Error parsing Python output or saving to DB: ${parseOrDbError}`
+      );
       console.error(`[Controller] Python stdout: ${pythonOutput}`);
       return res
         .status(500)
-        .json({ error: `Server error after OCR: ${parseError.message}` });
+        .json({ error: `Server error after OCR: ${parseOrDbError.message}` });
     }
   });
 
@@ -87,7 +135,7 @@ exports.getAllReceipts = async (req, res) => {
 exports.getReceiptById = async (req, res) => {
   try {
     const receiptId = req.params.id;
-    const receipt = await db.Receipt.findByPk(receiptId); // Find by primary key directly
+    const receipt = await db.Receipt.findByPk(receiptId);
 
     if (!receipt) {
       return res.status(404).json({ error: "Receipt not found." });
@@ -107,7 +155,7 @@ exports.getReceiptById = async (req, res) => {
 exports.updateReceipt = async (req, res) => {
   try {
     const receiptId = req.params.id;
-    const updates = req.body; // Data to update from the frontend
+    const updates = req.body;
 
     // Prevent updating sensitive fields like ID or timestamps
     delete updates.id;
@@ -115,16 +163,13 @@ exports.updateReceipt = async (req, res) => {
     delete updates.updatedAt;
 
     // Ensure date is parsed if provided
-    if (updates.transactionDate !== undefined) {
-      const dateObj = new Date(updates.transactionDate);
-      if (updates.transactionDate === "" || isNaN(dateObj.getTime())) {
-        updates.transactionDate = null;
-      } else {
-        updates.transactionDate = dateObj;
-      }
+    if (updates.transactionDate && !isNaN(new Date(updates.transactionDate))) {
+      updates.transactionDate = new Date(updates.transactionDate);
+    } else if (updates.transactionDate === "") {
+      updates.transactionDate = null;
     }
 
-    // Ensure amounts (amount, VAT, liters) are parsed to numbers if they are provided and not empty
+    // Ensure amounts (amount, VAT, liters, milestone) are parsed to numbers if they are provided and not empty
     if (
       updates.amount !== undefined &&
       updates.amount !== null &&
@@ -155,19 +200,27 @@ exports.updateReceipt = async (req, res) => {
       updates.liters = null;
     }
 
+    if (
+      updates.milestone !== undefined &&
+      updates.milestone !== null &&
+      updates.milestone !== ""
+    ) {
+      updates.milestone = parseFloat(updates.milestone);
+    } else {
+      updates.milestone = null;
+    }
+
     const [updatedRows] = await db.Receipt.update(updates, {
-      where: { id: receiptId }, // Update based on receipt ID
-      returning: true, // Return the updated rows (PostgreSQL specific)
+      where: { id: receiptId },
+      returning: true,
     });
 
     if (updatedRows === 0) {
-      // If updatedRows is 0, it means the receipt was not found or no changes were provided
       return res
         .status(404)
         .json({ error: "Receipt not found or no changes were provided." });
     }
 
-    // Fetch the updated receipt to return the latest state
     const updatedReceipt = await db.Receipt.findByPk(receiptId);
     res.json({
       message: "Receipt updated successfully.",
@@ -188,11 +241,10 @@ exports.deleteReceipt = async (req, res) => {
   try {
     const receiptId = req.params.id;
     const deletedRows = await db.Receipt.destroy({
-      where: { id: receiptId }, // Delete based on receipt ID
+      where: { id: receiptId },
     });
 
     if (deletedRows === 0) {
-      // If deletedRows is 0, it means the receipt was not found
       return res.status(404).json({ error: "Receipt not found." });
     }
     res.status(200).json({ message: "Receipt deleted successfully." });
