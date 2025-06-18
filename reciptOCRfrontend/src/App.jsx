@@ -13,13 +13,22 @@ function App() {
     merchant_name: '',
     date: '',
     total_amount: '',
-    currency: 'THB' // Currency is fixed to THB
+    gas_provider: '',
+    gas_name: '',
+    gas_address: '',
+    gas_tax_id: '',
+    receipt_no: '',
+    liters: '',
+    plate_no: '',
+    milestone: '',
+    VAT: '',
+    gas_type: '',
+    egat_address_th: '',
+    egat_address_eng: '',
+    egat_tax_id: ''
   });
   const [receiptType, setReceiptType] = useState('generic');
 
-  /**
-   * Handles the file input change event.
-   */
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     setImagePreviewUrl(null);
@@ -29,7 +38,24 @@ function App() {
     setIsProcessing(false);
     setExtractedText('');
     setParsedData(null);
-    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+    setEditableFields({
+      merchant_name: '',
+      date: '',
+      total_amount: '',
+      gas_provider: '',
+      gas_name: '',
+      gas_address: '',
+      gas_tax_id: '',
+      receipt_no: '',
+      liters: '',
+      plate_no: '',
+      milestone: '',
+      VAT: '',
+      gas_type: '',
+      egat_address_th: '',
+      egat_address_eng: '',
+      egat_tax_id: ''
+    });
 
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -44,29 +70,38 @@ function App() {
     }
   };
 
-  /**
-   * Handles changes in the editable input fields.
-   */
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
     setEditableFields(prevFields => ({ ...prevFields, [name]: value }));
   };
 
-  /**
-   * Handles changes in the receipt type dropdown.
-   */
   const handleReceiptTypeChange = (e) => {
     setReceiptType(e.target.value);
     setStatusMessage('');
     setIsError(false);
     setExtractedText('');
     setParsedData(null);
-    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+    // Reset all editable fields when receipt type changes
+    setEditableFields({
+      merchant_name: '',
+      date: '',
+      total_amount: '',
+      gas_provider: '',
+      gas_name: '',
+      gas_address: '',
+      gas_tax_id: '',
+      receipt_no: '',
+      liters: '',
+      plate_no: '',
+      milestone: '',
+      VAT: '',
+      gas_type: '',
+      egat_address_th: '',
+      egat_address_eng: '',
+      egat_tax_id: ''
+    });
   };
 
-  /**
-   * Handles sending the selected image and receipt type to the Flask backend for processing.
-   */
   const handleProcessReceipt = async () => {
     if (!selectedFile) {
       setStatusMessage('Please upload an image first.');
@@ -79,15 +114,34 @@ function App() {
     setIsError(false);
     setExtractedText('');
     setParsedData(null);
-    setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+    // Reset editable fields before new processing starts
+    setEditableFields({
+      merchant_name: '',
+      date: '',
+      total_amount: '',
+      gas_provider: '',
+      gas_name: '',
+      gas_address: '',
+      gas_tax_id: '',
+      receipt_no: '',
+      liters: '',
+      plate_no: '',
+      milestone: '',
+      VAT: '',
+      gas_type: '',
+      egat_address_th: '',
+      egat_address_eng: '',
+      egat_tax_id: ''
+    });
 
     const formData = new FormData();
     formData.append('receipt_image', selectedFile);
     formData.append('receipt_type', receiptType);
 
     try {
-      // --- UPDATED API URL HERE ---
-      const response = await fetch('http://127.0.0.1:5000/api/receipts/process-image', {
+      // --- UPDATED API URL HERE (assuming Node.js backend now) ---
+      // Make sure your backend (Node.js) is running on port 5000 or adjust accordingly.
+      const response = await fetch('http://localhost:5000/api/receipts/process-image', {
         method: 'POST',
         body: formData,
       });
@@ -98,14 +152,36 @@ function App() {
         setIsError(false);
         setExtractedText(data.extracted_text || 'No text extracted.');
         setParsedData(data.parsed_data);
-        setEditableFields(data.parsed_data);
+        // Use the spread operator to correctly update all fields from parsed_data
+        // ensuring new fields are included and existing ones are updated.
+        setEditableFields(prevFields => ({
+          ...prevFields, // Keep existing fields
+          ...data.parsed_data // Overlay with new parsed data
+        }));
       } else {
         const errorData = await response.json();
         setStatusMessage(`Error: ${errorData.error || 'Unknown error during processing.'}`);
         setIsError(true);
         setExtractedText('');
         setParsedData(null);
-        setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+        setEditableFields({ // Reset to initial state on error
+          merchant_name: '',
+          date: '',
+          total_amount: '',
+          gas_provider: '',
+          gas_name: '',
+          gas_address: '',
+          gas_tax_id: '',
+          receipt_no: '',
+          liters: '',
+          plate_no: '',
+          milestone: '',
+          VAT: '',
+          gas_type: '',
+          egat_address_th: '',
+          egat_address_eng: '',
+          egat_tax_id: ''
+        });
       }
     } catch (error) {
       console.error('Network or processing error:', error);
@@ -113,19 +189,63 @@ function App() {
       setIsError(true);
       setExtractedText('');
       setParsedData(null);
-      setEditableFields({ merchant_name: '', date: '', total_amount: '', currency: 'THB' });
+      setEditableFields({ // Reset to initial state on network/processing error
+        merchant_name: '',
+        date: '',
+        total_amount: '',
+        gas_provider: '',
+        gas_name: '',
+        gas_address: '',
+        gas_tax_id: '',
+        receipt_no: '',
+        liters: '',
+        plate_no: '',
+        milestone: '',
+        VAT: '',
+        gas_type: '',
+        egat_address_th: '',
+        egat_address_eng: '',
+        egat_tax_id: ''
+      });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  /**
-   * Placeholder function for saving changes (no actual backend/DB interaction in this version).
-   */
-  const handleSaveChanges = () => {
-    setStatusMessage('Changes saved locally! (This version does not save to a database.)');
+  const handleSaveChanges = async () => {
+    if (!parsedData || !parsedData.db_receipt_id) {
+      setStatusMessage('No receipt to save. Process an image first.');
+      setIsError(true);
+      return;
+    }
+
+    setStatusMessage('Saving changes...');
     setIsError(false);
-    console.log("Editable Fields:", editableFields);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/receipts/${parsedData.db_receipt_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editableFields),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setStatusMessage(result.message);
+        setIsError(false);
+        console.log("Updated Receipt:", result.receipt);
+      } else {
+        const errorData = await response.json();
+        setStatusMessage(`Error saving changes: ${errorData.error || 'Unknown error.'}`);
+        setIsError(true);
+      }
+    } catch (error) {
+      console.error('Network error during save:', error);
+      setStatusMessage('Failed to connect to the backend to save changes.');
+      setIsError(true);
+    }
   };
 
   return (
@@ -164,7 +284,7 @@ function App() {
               accept="image/png, image/jpeg, image/jpg, image/gif, image/webp"
               onChange={handleImageChange}
             />
-            <label
+            <button
               htmlFor="imageUpload"
               className="file-input-button"
             >
@@ -186,7 +306,7 @@ function App() {
                 <path d="M18 14l-6-6-6 6" />
               </svg>
               Choose Receipt Image
-            </label>
+            </button>
           </div>
 
           {statusMessage && (
@@ -231,7 +351,7 @@ function App() {
                   id="merchant_name"
                   name="merchant_name"
                   className="form-input"
-                  value={editableFields.merchant_name}
+                  value={editableFields.merchant_name || ''}
                   onChange={handleFieldChange}
                 />
               </div>
@@ -242,7 +362,7 @@ function App() {
                   id="date"
                   name="date"
                   className="form-input"
-                  value={editableFields.date}
+                  value={editableFields.date || ''}
                   onChange={handleFieldChange}
                 />
               </div>
@@ -253,22 +373,158 @@ function App() {
                   id="total_amount"
                   name="total_amount"
                   className="form-input"
-                  value={editableFields.total_amount}
+                  value={editableFields.total_amount || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+
+              {/* New Gas-specific Fields */}
+              <div className="form-group">
+                <label htmlFor="gas_provider" className="form-label">Gas Provider:</label>
+                <input
+                  type="text"
+                  id="gas_provider"
+                  name="gas_provider"
+                  className="form-input"
+                  value={editableFields.gas_provider || ''}
                   onChange={handleFieldChange}
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="currency" className="form-label">Currency:</label>
+                <label htmlFor="gas_name" className="form-label">Gas Station Name:</label>
                 <input
                   type="text"
-                  id="currency"
-                  name="currency"
+                  id="gas_name"
+                  name="gas_name"
                   className="form-input"
-                  value={editableFields.currency}
+                  value={editableFields.gas_name || ''}
                   onChange={handleFieldChange}
-                  readOnly
                 />
               </div>
+              <div className="form-group">
+                <label htmlFor="gas_address" className="form-label">Gas Station Address:</label>
+                <input
+                  type="text"
+                  id="gas_address"
+                  name="gas_address"
+                  className="form-input"
+                  value={editableFields.gas_address || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="gas_tax_id" className="form-label">Gas Station Tax ID:</label>
+                <input
+                  type="text"
+                  id="gas_tax_id"
+                  name="gas_tax_id"
+                  className="form-input"
+                  value={editableFields.gas_tax_id || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="receipt_no" className="form-label">Receipt No.:</label>
+                <input
+                  type="text"
+                  id="receipt_no"
+                  name="receipt_no"
+                  className="form-input"
+                  value={editableFields.receipt_no || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="liters" className="form-label">Liters:</label>
+                <input
+                  type="text"
+                  id="liters"
+                  name="liters"
+                  className="form-input"
+                  value={editableFields.liters || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="plate_no" className="form-label">Plate No.:</label>
+                <input
+                  type="text"
+                  id="plate_no"
+                  name="plate_no"
+                  className="form-input"
+                  value={editableFields.plate_no || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="milestone" className="form-label">Milestone (km):</label>
+                <input
+                  type="text"
+                  id="milestone"
+                  name="milestone"
+                  className="form-input"
+                  value={editableFields.milestone || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="VAT" className="form-label">VAT:</label>
+                <input
+                  type="text"
+                  id="VAT"
+                  name="VAT"
+                  className="form-input"
+                  value={editableFields.VAT || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="gas_type" className="form-label">Gas Type:</label>
+                <input
+                  type="text"
+                  id="gas_type"
+                  name="gas_type"
+                  className="form-input"
+                  value={editableFields.gas_type || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+
+              {/* New EGAT-specific Fields */}
+              <div className="form-group">
+                <label htmlFor="egat_address_th" className="form-label">EGAT Address (Thai):</label>
+                <input
+                  type="text"
+                  id="egat_address_th"
+                  name="egat_address_th"
+                  className="form-input"
+                  value={editableFields.egat_address_th || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="egat_address_eng" className="form-label">EGAT Address (English):</label>
+                <input
+                  type="text"
+                  id="egat_address_eng"
+                  name="egat_address_eng"
+                  className="form-input"
+                  value={editableFields.egat_address_eng || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="egat_tax_id" className="form-label">EGAT Tax ID:</label>
+                <input
+                  type="text"
+                  id="egat_tax_id"
+                  name="egat_tax_id"
+                  className="form-input"
+                  value={editableFields.egat_tax_id || ''}
+                  onChange={handleFieldChange}
+                />
+              </div>
+
               <button
                 onClick={handleSaveChanges}
                 className="save-button"

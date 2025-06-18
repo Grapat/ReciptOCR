@@ -51,6 +51,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      egatTaxId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       receiptNo: {
         type: DataTypes.STRING,
         allowNull: true,
