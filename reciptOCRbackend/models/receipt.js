@@ -43,6 +43,14 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
+      egatAddressTH: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      egatAddressENG: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
       receiptNo: {
         type: DataTypes.STRING,
         allowNull: true,
