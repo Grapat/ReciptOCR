@@ -86,7 +86,6 @@ exports.processReceipt = async (req, res) => {
         amount: parsedData.total_amount
           ? parseFloat(parsedData.total_amount)
           : null,
-        currency: parsedData.currency || "THB",
         VAT: parsedData.VAT ? parseFloat(parsedData.VAT) : null,
         liters: parsedData.liters ? parseFloat(parsedData.liters) : null,
         rawExtractedText: extractedText || null,
