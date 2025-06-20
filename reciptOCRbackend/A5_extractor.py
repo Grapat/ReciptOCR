@@ -14,10 +14,11 @@ LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'a5_extractor.log')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-file_handler = logging.FileHandler(LOG_FILE_PATH)
+file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
 file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 
 if not logger.handlers:
@@ -31,26 +32,31 @@ def _extract_amount(text_to_search):
     amount_match = re.search(
         r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)', text_to_search)
     if amount_match:
+        # <--- เปลี่ยนตรงนี้ให้คืนค่า group(1) ที่เป็น string
         value = amount_match.group(1)
         cleaned_value = value.replace(',', '')
-        
+
+        # Ensure proper handling of decimal points for cleaning
         if '.' in cleaned_value:
             parts = cleaned_value.split('.')
             if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) not in [0, 2]):
                 cleaned_value = cleaned_value.replace('.', '')
             elif len(parts) == 2 and len(parts[1]) == 0:
                 cleaned_value = parts[0]
-        
+
         if cleaned_value.replace('.', '', 1).isdigit():
-            logger.debug(f"Extracted amount '{value}' -> cleaned to '{cleaned_value}'")
+            logger.debug(
+                f"Extracted amount '{value}' -> cleaned to '{cleaned_value}'")
             return cleaned_value
     logger.debug(f"No amount found in '{text_to_search}'")
     return None
+
 
 def _extract_vat(text_to_search):
     vat_match = re.search(
         r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)', text_to_search)
     if vat_match:
+        # <--- เปลี่ยนตรงนี้ให้คืนค่า group(1) ที่เป็น string
         value = vat_match.group(1)
         cleaned_value = value.replace(',', '')
 
@@ -62,7 +68,8 @@ def _extract_vat(text_to_search):
                 cleaned_value = parts[0]
 
         if cleaned_value.replace('.', '', 1).isdigit():
-            logger.debug(f"Extracted VAT '{value}' -> cleaned to '{cleaned_value}'")
+            logger.debug(
+                f"Extracted VAT '{value}' -> cleaned to '{cleaned_value}'")
             return cleaned_value
     logger.debug(f"No VAT found in '{text_to_search}'")
     return None
@@ -107,7 +114,8 @@ def _extract_date(text_to_search):
                         year += 543
 
                     formatted_date = f"{year:04d}-{month:02d}-{day:02d}"
-                    logger.debug(f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
+                    logger.debug(
+                        f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
                     return formatted_date
                 elif re.match(r'\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}', d_str):
                     parts = re.split(r'[/\-.]', d_str)
@@ -118,10 +126,12 @@ def _extract_date(text_to_search):
                     if year < 2500:
                         year += 543
                     formatted_date = f"{year:04d}-{month:02d}-{day:02d}"
-                    logger.debug(f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
+                    logger.debug(
+                        f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
                     return formatted_date
             except ValueError:
-                logger.debug(f"Date parsing failed for '{d_str}' with pattern '{pattern}'")
+                logger.debug(
+                    f"Date parsing failed for '{d_str}' with pattern '{pattern}'")
                 pass
     logger.debug(f"No date found in '{text_to_search}'")
     return None
@@ -133,7 +143,8 @@ def _extract_id(text_to_search, min_len, max_len):
     if id_match:
         logger.debug(f"Extracted ID: {id_match.group(1)}")
         return id_match.group(1)
-    logger.debug(f"No ID found in '{text_to_search}' (min_len={min_len}, max_len={max_len})")
+    logger.debug(
+        f"No ID found in '{text_to_search}' (min_len={min_len}, max_len={max_len})")
     return None
 
 
@@ -169,18 +180,19 @@ def _normalize_gas_type(text_to_search):
 
 def extract_with_keywords(data, image_cv, result):
     logger.info("Starting keyword-based extraction.")
+
     keywords = {
-        'merchant_name': ['บริษัท', 'จำกัด', 'PTT', 'BANGCHAK', 'บางจาก', 'สยามยามาโมโต'],
+        'merchant_name': ['บริษัท', 'กัด'],
         'date': ['วันที่ขาย', 'วันที่พิมพ์', 'เวลาวางมือจ่าย'],
         'total_amount': ['รวมเป็นเงิน', 'เป็นเงิน', 'รวมเงิน'],
         'receipt_no': ['เลขที่ใบกํากับภาษี', 'RECEIPT/TAX INVOICE', 'RD#'],
-        'liters': ['Liters', 'L', 'quantity', 'ลิตร'],
+        'liters': ['Liters', 'quantity', 'ลิตร'],
         'plate_no': ['ทะเบียนรถ', 'รถ'],
         'milestone': ['เลขไมล์ :', 'เลขไมล์'],
         'VAT': ['ภาษีมูลค่าเพิ่ม', 'VAT 7%)'],
         'gas_type': ['DIESEL', 'E20', 'E85', 'GASOHOL', 'HI DIESEL'],
         'egat_address_th': ['53 หมู่ 2', 'การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย', 'กฟผ.', 'กฟผ', 'นนทบุรี', 'บางกรวย'],
-        'egat_address_eng': ['ชื่อลูกค้า:', 'electricitygeneratingauthorityofthailand', '53'],
+        'egat_address_eng': ['ชื่อลูกค้า:', 'electricitygeneratingauthorityofthailand', 'electricity', '11130'],
         'egat_tax_id': ['เลขประจำตัวผู้เสียภาษี', '099'],
     }
 
@@ -226,24 +238,17 @@ def extract_with_keywords(data, image_cv, result):
                 elif field == "gas_type":
                     value = _normalize_gas_type(text_to_search)
                 elif field == 'merchant_name':
-                    if 'สยามยามาโมโต' in word:
-                        value = 'บริษัท สยามยามาโมโต จำกัด'
-                    elif 'ptt' in word.lower():
-                        value = 'PTT'
-                    elif 'bangchak' in word.lower() or 'บางจาก' in word.lower():
-                        value = 'Bangchak'
-                    elif any(kw.lower() == word.lower() for kw in ['บริษัท', 'จำกัด']):
+                    if any(kw in word.lower() for kw in ['บริษัท', 'กัด']):
                         company_name_words = []
-                        for k in range(i, min(i+5, len(data['text']))):
+                        for k in range(i, min(i+20, len(data['text']))):
                             w = data['text'][k].strip()
                             if w:
                                 company_name_words.append(w)
-                                if 'จำกัด' in w.lower():
+                                if 'กัด' in w.lower():
                                     break
-                        if company_name_words:
-                            full_name = " ".join(company_name_words)
-                            if 'บริษัท' in full_name and 'จำกัด' in full_name:
-                                value = full_name
+                        full_name = " ".join(company_name_words)
+                        if 'บริษัท' in full_name and 'กัด' in full_name:
+                            value = full_name
                 elif field in ['egat_address_th', 'egat_address_eng']:
                     collected_address_words = []
                     current_line_num = data['line_num'][i]
@@ -263,10 +268,11 @@ def extract_with_keywords(data, image_cv, result):
                             r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
                         if value == '':
                             value = None
-
+# SAVE
                 if value is not None and collected[field] is None:
                     collected[field] = value
-                    logger.debug(f"Keyword extraction: Field '{field}' found value: '{value}'")
+                    logger.debug(
+                        f"Keyword extraction: Field '{field}' found value: '{value}'")
                     x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
                     if 0 <= x < x + w <= image_cv.shape[1] and 0 <= y < y + h <= image_cv.shape[0]:
                         cv2.rectangle(image_cv, (x, y),
@@ -291,19 +297,19 @@ def extract_with_keywords(data, image_cv, result):
 def extract_with_regex_patterns(extracted_text, result):
     logger.info("Starting regex-based extraction.")
     patterns = {
-        "egat_address_th": r"(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.)(?:[\s\S]*?)(\d{4}[\-.]\d{1,2}[\-.]\d{1,2}\s*(?:\d{1,2}:\d{1,2}:\d{1,2})?)?([\s\S]*?)(?=\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid|$)|(?:phone|fax|เลขประจำตัวผู้เสียภาษี|taxid|$))",
-        "egat_address_eng": r"(?:electricitygeneratingauthorityofthailand|egat)[:\s]*([\s\S]*?)(?=\d{5}\s*(?:|phone|fax|web|email|taxid|$)|(?:โทร|โทรสาร|เลขประจำตัวผู้เสียภาษี|taxid|$))",
+        "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
+        "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?130)",
         "egat_tax_id": r"(?:เลขประจำตัวผู้เสียภาษี|taxid)[:\s]*(\d{10,15})",
-        "merchant_name": r"(บริษัท*?จำกัด)",
-        "gas_address": r"(ที่อยู่|address)[:\s]*(.*?)(?=\d{5}|\n|$)",
-        "gas_tax_id": r"(?:taxid|เลขประจำตัวผู้เสียภาษี)[:\s]*(\d{10,15})",
-        "receipt_no": r"(?:เลขที่ใบกำกับภาษี|receiptno\.?|rd#)[:\s]*([a-z0-9\-/]{8,20})",
-        "date": r"(?:วันที่ขาย|date|issued)[:\s]*(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})",
-        "total_amount": r"(?:รวมเป็นเงิน|รวมเงิน|total|amount)[:\s]*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)",
-        "liters": r"(\d+(?:\.\d+)?)\s*(?:l|ลิตร|litres|liters)",
-        "VAT": r"(?:ภาษีมูลค่าเพิ่ม|vat)[:\s]*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)",
-        "plate_no": r"ทะเบียนรถ[:\s]*([0-9]{1,2}[ก-ฮa-za-z]{1,2}[0-9]{3,4})",
-        "milestone": r"เลขไมล์[:\s]*(\d+(?:[.,]\d+)?)\s*กิโลเมตร",
+        "merchant_name": r"(บริษัท.*?กัด)",
+        "total_amount": r"(?:fleetcard.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
+        "gas_address": r"x",
+        "gas_tax_id": r"x",
+        "receipt_no": r"x",
+        "date": r"x",
+        "liters": r"x",
+        "VAT": r"x",
+        "plate_no": r"x",
+        "milestone": r"x",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)"
     }
 
@@ -322,11 +328,14 @@ def extract_with_regex_patterns(extracted_text, result):
             if match:
                 value = None
                 if field == "egat_address_th":
-                    value = match.group(2).strip() if len(
-                        match.groups()) > 1 else None
-                    if value:
-                        value = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
+                    # เนื่องจาก regex ของ egat_address_th มีเพียงหนึ่ง capturing group
+                    # เราจึงควรเข้าถึง group(1) ซึ่งมีข้อมูลที่จับคู่ได้
+                    if len(match.groups()) > 0:  # ตรวจสอบว่ามีอย่างน้อยหนึ่งกลุ่มที่ถูกจับคู่
+                        value = match.group(1).strip()
+                    # หากไม่มี capturing group (ไม่น่าจะเกิดขึ้นถ้า regex ถูกต้องและจับคู่ได้)
+                    else:
+                        value = match.group(0).strip()
+
                 elif field == "date":
                     value = _extract_date(match.group(1).strip())
                 elif field == "total_amount":
@@ -345,9 +354,7 @@ def extract_with_regex_patterns(extracted_text, result):
                     value = _extract_plate_no(match.group(1).strip())
                 elif field == "merchant_name":
                     val = match.group(0).strip()
-                    if 'สยามยามาโมโต' in val:
-                        value = 'บริษัท สยามยามาโมโต จำกัด'
-                    elif 'ptt' in val.lower():
+                    if 'ptt' in val.lower():
                         value = 'PTT'
                     elif 'bangchak' in val.lower() or 'บางจาก' in val.lower():
                         value = 'Bangchak'
@@ -364,9 +371,11 @@ def extract_with_regex_patterns(extracted_text, result):
 
                 if value is not None and value != result[field]:
                     result[field] = value
-                    logger.debug(f"Regex extraction: Field '{field}' found value: '{value}'")
+                    logger.debug(
+                        f"Regex extraction: Field '{field}' found value: '{value}'")
             else:
-                logger.debug(f"Regex pattern for '{field}' did not match in text.")
+                logger.debug(
+                    f"Regex pattern for '{field}' did not match in text.")
 
     for field in result:
         if result[field] == "N/A":
