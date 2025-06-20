@@ -109,7 +109,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
         # Assuming it *might* use the full string, adjust as necessary:
         # May need to add cleaned_extracted_text_for_matching if used
         result, image_cv = extractor_module.extract_with_keywords(
-            data, image_cv, result)
+            data, debug_image_cv2, extracted_text, result)
     else:
         pass  # Placeholder for generic keyword extraction
 
@@ -117,7 +117,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # Pass the globally cleaned text for consistency
     if extractor_module and hasattr(extractor_module, 'extract_with_regex_patterns'):
         result = extractor_module.extract_with_regex_patterns(
-            cleaned_extracted_text_for_matching, result)
+            extracted_text, result)
     else:
         pass  # Placeholder for generic regex extraction
 
