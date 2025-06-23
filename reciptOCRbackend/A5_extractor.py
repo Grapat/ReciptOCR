@@ -54,26 +54,56 @@ def _extract_amount(text_to_search):
 
 
 def _extract_date(text_to_search):
-    date_patterns = [
-        r'(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})',  # DD/MM/YY or DD/MM/YYYY
-        r'(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})'    # YYYY/MM/DD
+    logger.info(f"Attempting to extract date from: '{text_to_search}'")
+    # Normalize spaces in the text to simplify regex matching
+    text_to_search = re.sub(r'\s+', ' ', text_to_search).strip()
+    # ORDER MATTERS: Prioritize DD-MM-YYYY/YY formats common in Thailand.
+    date_patterns_and_formats = [
+        # DD-MM-YYYY/MM/YYYY formats (e.g., 31-01-2023, 1/1/2023)
+        (r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})',
+         ['%d-%m-%Y', '%d/%m/%Y', '%d.%m.%Y']),
+        # DD-MM-YY/MM/YY formats (2-digit year, e.g., 31-01-23, 1/1/23)
+        (r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{2})',
+         ['%d-%m-%y', '%d/%m/%y', '%d.%m.%y']),
+        # YYYY-MM-DD/MM/DD formats (e.g., 2023-01-31, 2023/1/5)
+        (r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
+         ['%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d']),
     ]
-    for pattern in date_patterns:
-        match = re.search(pattern, text_to_search, re.IGNORECASE)
+    for regex_pattern, strptime_formats in date_patterns_and_formats:
+        match = re.search(regex_pattern, text_to_search, re.IGNORECASE)
         if match:
-            date_str = match.group(0)
-            # Attempt to parse
-            try:
-                # Handle Thai years (BE to AD)
-                if len(date_str.split()[-1]) == 4 and int(date_str.split()[-1]) > 2500:
-                    year = int(date_str.split()[-1]) - 543
-                    date_str = date_str.replace(
-                        date_str.split()[-1], str(year))
-                return date_str
-            except Exception as e:
-                logger.debug(f"Date parsing error: {e}")
-                continue
-    logger.debug(f"No date found in '{text_to_search}'")
+            # Extract the captured date string from the regex match
+            date_string_matched = match.group(1).strip()
+
+            # Create a copy for processing to avoid modifying the original matched string
+            processed_date_string = date_string_matched
+
+            # Thai month name replacement logic is no longer needed here.
+
+            # Handle Thai Buddhist Era (BE) years to Common Era (AD)
+            # Look for 4-digit numbers that are likely BE years (e.g., > 2500)
+            year_match_be = re.search(r'\b(\d{4})\b', processed_date_string)
+            if year_match_be and int(year_match_be.group(1)) > 2500:
+                year_be = int(year_match_be.group(1))
+                year_ad = year_be - 543
+                processed_date_string = processed_date_string.replace(
+                    str(year_be), str(year_ad))
+
+            # Attempt to parse the processed date string with the defined strptime formats
+            for fmt in strptime_formats:
+                try:
+                    parsed_date = datetime.strptime(processed_date_string, fmt)
+                    # If successfully parsed, return the date in ISO format (YYYY-MM-DD)
+                    logger.debug(
+                        f"Successfully parsed '{date_string_matched}' to '{parsed_date.strftime('%Y-%m-%d')}' using format '{fmt}'")
+                    return parsed_date.strftime('%Y-%m-%d')
+                except ValueError:
+                    # If parsing fails with the current format, try the next one
+                    continue
+
+    # If no date is found after trying all patterns and formats
+    logger.debug(
+        f"No date found in '{text_to_search}' after trying all patterns.")
     return None
 
 
@@ -161,9 +191,9 @@ def extract_with_keywords(data, image_cv, full_ocr_text, result):
     keywords = {
         "merchant_name": ["บริษัท", "จำกัด"],
         "total_amount": ["รวมเงิน", "ยอดรวม", "total"],
-        "date": ["วันที่", "date", "วัน/เวลา"],
+        "date": ["วันที่", "date", "วัน/เวลา", "มือจ่าย", "วันที่ขาย", "วันที่พิมพ์"],
         "receipt_no": ["เลขที่", "receipt", "no", "tid"],
-        "liters": ["ลิตร", "liters", "litre", "l"],
+        "liters": ["ลิตร", "liters", "litre"],
         "plate_no": ["ทะเบียน", "plate"],
         "milestone": ["ระยะ", "km", "กม"],
         "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
@@ -203,9 +233,25 @@ def extract_with_keywords(data, image_cv, full_ocr_text, result):
                 elif field == "date":
                     value = _extract_date(text_to_search)
                 elif field == "receipt_no":
-                    value = _extract_id(text_to_search, 8, 20)
-                    if not value and 'TID' in word and i + 1 < len(data['text']):
-                        value = _extract_id(data['text'][i+1], 8, 20)
+                    # --- NEW LOGIC FOR 'POS' ID ---
+                    if "pos" in word.lower():
+                        # Search for 5-7 consecutive digits in the text_to_search context
+                        pos_id_match = re.search(
+                            r'\b(\d{5,7})\b', text_to_search)
+                        if pos_id_match:
+                            value = pos_id_match.group(1)
+                            logger.debug(
+                                f"POS ID (5-7 digits) found near 'POS': {value}")
+                        else:
+                            logger.debug(
+                                f"POS keyword found, but no 5-7 digit number immediately following in '{text_to_search}'")
+                    # --- END NEW LOGIC ---
+                    # If value not set by POS logic, or it's N/A, try existing _extract_id logic
+                    if value is None or value == "N/A":
+                        # Broader search for 8-20 digit IDs
+                        value = _extract_id(text_to_search, 8, 20)
+                        if not value and 'TID' in word and i + 1 < len(data['text']):
+                            value = _extract_id(data['text'][i+1], 8, 20)
                 elif field == "plate_no":
                     value = _extract_plate_no(text_to_search)
                 elif field == "milestone":
