@@ -104,20 +104,18 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # Perform keyword-based extraction
     # Pass the globally cleaned text for consistency
     if extractor_module and hasattr(extractor_module, 'extract_with_keywords'):
-        # If your extract_with_keywords uses the full string, pass the cleaned_extracted_text_for_matching
-        # Otherwise, if it only relies on 'data' dict, no change needed here.
-        # Assuming it *might* use the full string, adjust as necessary:
-        # May need to add cleaned_extracted_text_for_matching if used
+        # Corrected line: Passing image_cv and cleaned_extracted_text_for_matching
         result, image_cv = extractor_module.extract_with_keywords(
-            data, debug_image_cv2, extracted_text, result)
+            data, image_cv, cleaned_extracted_text_for_matching, result)
     else:
         pass  # Placeholder for generic keyword extraction
 
     # Perform regex-based extraction
     # Pass the globally cleaned text for consistency
     if extractor_module and hasattr(extractor_module, 'extract_with_regex_patterns'):
+        # Corrected line: Passing cleaned_extracted_text_for_matching
         result = extractor_module.extract_with_regex_patterns(
-            extracted_text, result)
+            cleaned_extracted_text_for_matching, result)
     else:
         pass  # Placeholder for generic regex extraction
 
