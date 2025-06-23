@@ -25,7 +25,7 @@ if not logger.handlers:
     logger.addHandler(file_handler)
 # --- Logging Configuration End ---
 
-# Helper functions for common extraction logicAdd commentMore actions
+# Helper functions for common extraction logic
 
 
 def _extract_amount(text_to_search):
@@ -37,159 +37,140 @@ def _extract_amount(text_to_search):
 
         if '.' in cleaned_value:
             parts = cleaned_value.split('.')
-            if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) not in [0, 2]):
-                cleaned_value = cleaned_value.replace('.', '')
-            elif len(parts) == 2 and len(parts[1]) == 0:
-                cleaned_value = parts[0]
-
-        if cleaned_value.replace('.', '', 1).isdigit():
-            logger.debug(
-                f"Extracted amount '{value}' -> cleaned to '{cleaned_value}'")
-            return cleaned_value
+            if len(parts[1]) == 1:  # Only one digit after the decimal point
+                cleaned_value += '0'  # Add a zero to make it two decimal places
+            # Ensure it's a valid float conversion, if not, return None
+            try:
+                return float(cleaned_value)
+            except ValueError:
+                return None
+        # If no decimal point, treat as integer and convert to float
+        try:
+            return float(cleaned_value)
+        except ValueError:
+            return None
     logger.debug(f"No amount found in '{text_to_search}'")
-    return None
-
-
-def _extract_vat(text_to_search):
-    vat_match = re.search(
-        r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)', text_to_search)
-    if vat_match:
-        value = vat_match.group(1)
-        cleaned_value = value.replace(',', '')
-
-        if '.' in cleaned_value:
-            parts = cleaned_value.split('.')
-            if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) not in [0, 2]):
-                cleaned_value = cleaned_value.replace('.', '')
-            elif len(parts) == 2 and len(parts[1]) == 0:
-                cleaned_value = parts[0]
-
-        if cleaned_value.replace('.', '', 1).isdigit():
-            logger.debug(
-                f"Extracted VAT '{value}' -> cleaned to '{cleaned_value}'")
-            return cleaned_value
-    logger.debug(f"No VAT found in '{text_to_search}'")
-    return None
-
-
-def _extract_liters(text_to_search):
-    liters_match = re.search(
-        r'(\d+(?:\.\d+)?)\s*(?:l|ลิตร|litres|liters)', text_to_search, re.IGNORECASE)
-    if liters_match:
-        logger.debug(f"Extracted liters: {liters_match.group(1)}")
-        return liters_match.group(1)
-    logger.debug(f"No liters found in '{text_to_search}'")
     return None
 
 
 def _extract_date(text_to_search):
     date_patterns = [
         r'(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})',  # DD/MM/YY or DD/MM/YYYY
-        r'(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})'    # YYYY-MM-DD
+        r'(\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})'    # YYYY/MM/DD
     ]
     for pattern in date_patterns:
-        date_match = re.search(pattern, text_to_search)
-        if date_match:
-            d_str = date_match.group(1)
+        match = re.search(pattern, text_to_search, re.IGNORECASE)
+        if match:
+            date_str = match.group(0)
+            # Attempt to parse
             try:
-                if re.match(r'\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}', d_str):
-                    parts = re.split(r'[/\-.]', d_str)
-                    day = int(parts[0])
-                    month = int(parts[1])
-                    year = int(parts[2])
-
-                    current_gregorian_year = datetime.now().year
-                    current_be_year = current_gregorian_year + 543
-
-                    if len(str(year)) == 2:
-                        century_prefix = (current_be_year // 100) * 100
-                        if year <= (current_be_year % 100) + 5:
-                            year = century_prefix + year
-                        else:
-                            year = (century_prefix + 100) + year
-                    elif len(str(year)) == 4 and year < 2500:
-                        year += 543
-
-                    formatted_date = f"{year:04d}-{month:02d}-{day:02d}"
-                    logger.debug(
-                        f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
-                    return formatted_date
-                elif re.match(r'\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2}', d_str):
-                    parts = re.split(r'[/\-.]', d_str)
-                    year = int(parts[0])
-                    month = int(parts[1])
-                    day = int(parts[2])
-
-                    if year < 2500:
-                        year += 543
-                    formatted_date = f"{year:04d}-{month:02d}-{day:02d}"
-                    logger.debug(
-                        f"Extracted date '{d_str}' -> formatted to '{formatted_date}'")
-                    return formatted_date
-            except ValueError:
-                logger.debug(
-                    f"Date parsing failed for '{d_str}' with pattern '{pattern}'")
-                pass
+                # Handle Thai years (BE to AD)
+                if len(date_str.split()[-1]) == 4 and int(date_str.split()[-1]) > 2500:
+                    year = int(date_str.split()[-1]) - 543
+                    date_str = date_str.replace(
+                        date_str.split()[-1], str(year))
+                return date_str
+            except Exception as e:
+                logger.debug(f"Date parsing error: {e}")
+                continue
     logger.debug(f"No date found in '{text_to_search}'")
     return None
 
 
-def _extract_id(text_to_search, min_len, max_len):
-    id_match = re.search(
-        r'([A-Z0-9\-/]{%d,%d})' % (min_len, max_len), text_to_search, re.IGNORECASE)
+def _extract_id(text_to_search, min_len=10, max_len=15):
+    # Regex to find sequences of digits that could be a tax ID or receipt number
+    id_match = re.search(r'\b\d{' + str(min_len) + r',' +
+                         str(max_len) + r'}\b', text_to_search)
     if id_match:
-        logger.debug(f"Extracted ID: {id_match.group(1)}")
-        return id_match.group(1)
+        logger.debug(f"Extracted ID: {id_match.group(0)}")
+        return id_match.group(0)
     logger.debug(
-        f"No ID found in '{text_to_search}' (min_len={min_len}, max_len={max_len})")
+        f"No ID (length {min_len}-{max_len}) found in '{text_to_search}'")
+    return None
+
+
+def _extract_liters(text_to_search):
+    liters_match = re.search(
+        r'(\d{1,}(?:[.,]\d{1,})?)\s*(?:ลิตร|liters|litre|L)', text_to_search, re.IGNORECASE
+    )
+    if liters_match:
+        value = liters_match.group(1).replace(',', '')
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    logger.debug(f"No liters found in '{text_to_search}'")
+    return None
+
+
+def _extract_vat(text_to_search):
+    vat_match = re.search(
+        r'(?:VAT|ภาษีมูลค่าเพิ่ม)[\s:]*(\d{1,}(?:[.,]\d{2})?)', text_to_search, re.IGNORECASE)
+    if vat_match:
+        value = vat_match.group(1).replace(',', '')
+        try:
+            return float(value)
+        except ValueError:
+            return None
+    logger.debug(f"No VAT found in '{text_to_search}'")
     return None
 
 
 def _extract_plate_no(text_to_search):
-    plate_match = re.search(
-        r'[0-9]{1,2}\s*[ก-ฮa-zA-Z]{1,2}\s*[0-9]{3,4}', text_to_search)
-    if plate_match:
-        logger.debug(f"Extracted plate number: {plate_match.group(0)}")
-        return plate_match.group(0)
+    plate_no_match = re.search(
+        # Thai or English plate number
+        r'[ก-ฮa-zA-Z]{1,2}\s*\d{1,4}[ก-ฮa-zA-Z]{0,3}', text_to_search)
+    if plate_no_match:
+        return plate_no_match.group(0).replace(" ", "")
     logger.debug(f"No plate number found in '{text_to_search}'")
     return None
 
 
 def _extract_milestone(text_to_search):
+    # Regex to find numbers followed by "km" or "กม" (kilometers)
     milestone_match = re.search(
-        r'(\d+(?:[.,]\d+)?)\s*(?:กิโลเมตร|km)', text_to_search, re.IGNORECASE)
+        r'(\d{1,}(?:[.,]\d{1,})?)\s*(?:km|กม|ก.ม.)', text_to_search, re.IGNORECASE
+    )
     if milestone_match:
-        logger.debug(f"Extracted milestone: {milestone_match.group(1)}")
-        return milestone_match.group(1)
+        value = milestone_match.group(1).replace(',', '')
+        try:
+            return float(value)
+        except ValueError:
+            return None
     logger.debug(f"No milestone found in '{text_to_search}'")
     return None
 
 
-def _normalize_gas_type(text_to_search):
-    gas_type_match = re.search(
-        r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)", text_to_search, re.IGNORECASE)
-    if gas_type_match:
-        logger.debug(f"Normalized gas type: {gas_type_match.group(1).upper()}")
-        return gas_type_match.group(1).upper()
-    logger.debug(f"No gas type found in '{text_to_search}'")
+def _normalize_gas_type(text):
+    text = text.upper().replace(" ", "").replace("-", "")
+    if "DIESEL" in text:
+        return "DIESEL"
+    elif "E20" in text:
+        return "E20"
+    elif "E85" in text:
+        return "E85"
+    elif "GASOHOL" in text:
+        return "GASOHOL"
+    elif "HIDIESEL" in text:
+        return "HI DIESEL"
     return None
 
 
 def extract_with_keywords(data, image_cv, full_ocr_text, result):
-
+    logger.info("Starting keyword-based extraction.")
     keywords = {
-        'merchant_name': ['บริษัท', 'กัด'],
-        'date': ['วันที่ขาย', 'วันที่พิมพ์', 'เวลาวางมือจ่าย'],
-        'total_amount': ['รวมเป็นเงิน', 'เป็นเงิน', 'รวมเงิน'],
-        'receipt_no': ['เลขที่ใบกํากับภาษี', 'RECEIPT/TAX INVOICE', 'RD#'],
-        'liters': ['Liters', 'quantity', 'ลิตร'],
-        'plate_no': ['ทะเบียนรถ', 'รถ'],
-        'milestone': ['เลขไมล์ :', 'เลขไมล์'],
-        'VAT': ['ภาษีมูลค่าเพิ่ม', 'VAT 7%)'],
-        'gas_type': ['DIESEL', 'E20', 'E85', 'GASOHOL', 'HI DIESEL'],
-        'egat_address_th': ['53 หมู่ 2', 'การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย', 'กฟผ.', 'กฟผ', 'นนทบุรี', 'บางกรวย'],
-        'egat_address_eng': ['ชื่อลูกค้า:', 'electricitygeneratingauthorityofthailand', 'electricity', '11130'],
-        'egat_tax_id': ['เลขประจำตัวผู้เสียภาษี', '099'],
+        "merchant_name": ["บริษัท", "จำกัด"],
+        "total_amount": ["รวมเงิน", "ยอดรวม", "total"],
+        "date": ["วันที่", "date", "วัน/เวลา"],
+        "receipt_no": ["เลขที่", "receipt", "no", "tid"],
+        "liters": ["ลิตร", "liters", "litre", "l"],
+        "plate_no": ["ทะเบียน", "plate"],
+        "milestone": ["ระยะ", "km", "กม"],
+        "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
+        "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
+        "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
+        "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
+        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid"]
     }
 
     collected = {field: (result[field] if result[field]
@@ -205,7 +186,7 @@ def extract_with_keywords(data, image_cv, full_ocr_text, result):
             if collected[field] is not None and field not in ['merchant_name', 'gas_provider', 'gas_name', 'egat_address_th', 'egat_address_eng']:
                 continue
 
-            value = None  # Initialize value here
+            value = None  # Initialize value here for each field iteration
 
             if any(kw.lower() in word.lower() for kw in field_keywords):
                 logger.debug(f"Keyword '{word}' matched for field '{field}'.")
@@ -298,18 +279,10 @@ def extract_with_regex_patterns(full_ocr_text, result):
     logger.info("Starting regex-based extraction.")
     patterns = {
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
-        "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?130)",
+        "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เลขประจำตัวผู้เสียภาษี|taxid)[:\s]*(\d{10,15})",
         "merchant_name": r"(บริษัท.*?กัด)",
         "total_amount": r"(?:fleetcard.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
-        "gas_address": r"x",
-        "gas_tax_id": r"x",
-        "receipt_no": r"x",
-        "date": r"x",
-        "liters": r"x",
-        "VAT": r"x",
-        "plate_no": r"x",
-        "milestone": r"x",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)"
     }
 
@@ -320,70 +293,38 @@ def extract_with_regex_patterns(full_ocr_text, result):
                 float(str(result[field]).replace(',', ''))
             except ValueError:
                 is_placeholder_or_invalid = True
+
         if is_placeholder_or_invalid:
+            value = None  # Correctly initialized here, outside the 'if match' block
             match = re.search(pattern, full_ocr_text,
                               re.IGNORECASE | re.DOTALL)
 
             if match:
-                value = None  # Initialize value here as well
                 if field == "egat_address_th":
-                    value = match.group(2).strip() if len(
-                        match.groups()) > 1 else None
+                    value = match.group(1).strip()
                     if value:
                         value = re.sub(
                             r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
-                elif field == "date":
-                    value = _extract_date(match.group(1).strip())
                 elif field == "total_amount":
-                    value = _extract_amount(match.group(1).strip())
-                elif field == "VAT":
-                    value = _extract_vat(match.group(1).strip())
-                elif field == "liters":
-                    value = _extract_liters(match.group(0).strip())
-                elif field == "milestone":
-                    value = _extract_milestone(match.group(0).strip())
-                elif field in ["egat_tax_id", "gas_tax_id"]:
+                    value = _extract_amount(
+                        match.group('money_amount').strip())
+                elif field == "egat_tax_id":
                     value = _extract_id(match.group(1).strip(), 10, 15)
-                elif field == "receipt_no":
-                    value = _extract_id(match.group(1).strip(), 8, 20)
-                elif field == "plate_no":
-                    value = _extract_plate_no(match.group(1).strip())
-                # FIXED: Correctly access group(1) for egat_address_th as its regex has only one capturing group
-                elif field == "egat_address_th":
-                    if len(match.groups()) > 0:
-                        value = match.group(1).strip()
-                # Fallback to full match if no capturing group defined (shouldn't happen with current regex)
-                    else:
-                        value = match.group(0).strip()
-                    if value:
-                        # Clean the address (remove trailing postcodes/contact info)
-                        value = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
                 elif field == "egat_address_eng":
-                    # Existing logic: This should work if the regex provides group(1) or group(0)
-                    if len(match.groups()) > 0:
-                        value = match.group(1).strip()
-                    else:
-                        value = match.group(0).strip()
+                    value = match.group(1).strip()
                     if value:
                         value = re.sub(
                             r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
                 elif field == "merchant_name":
-                    # Use group(0) for the full match
                     val = match.group(0).strip()
                     if val.startswith('บริษัท') and val.endswith('จำกัด'):
-                        # Ensure proper spacing for company names
                         core_name = val[len('บริษัท'):-len('จำกัด')].strip()
                         value = f'บริษัท {core_name} จำกัด'
                     else:
-                        value = val  # Fallback to raw regex match
+                        value = val
                 elif field == "gas_type":
                     value = _normalize_gas_type(match.group(0).strip())
-                else:  # For other fields where group(1) is the direct value
-                    value = match.group(1).strip() if len(
-                        match.groups()) > 0 else match.group(0).strip()
 
-            # Update only if a new valid value is found
             if value is not None and value != result[field]:
                 result[field] = value
                 logger.debug(
@@ -392,8 +333,8 @@ def extract_with_regex_patterns(full_ocr_text, result):
                 logger.debug(
                     f"Regex pattern for '{field}' did not match in text.")
 
-        for field in result:
-            if result[field] == "N/A":
-                result[field] = None
+    for field in result:
+        if result[field] == "N/A":
+            result[field] = None
     logger.info("Regex-based extraction completed.")
     return result
