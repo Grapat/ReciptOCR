@@ -30,7 +30,7 @@ if not logger.handlers:
 
 def _extract_amount(text_to_search):
     amount_match = re.search(
-        r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)', text_to_search)
+        r'(\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search)
     if amount_match:
         value = amount_match.group(1)
         cleaned_value = value.replace(',', '')
@@ -54,56 +54,46 @@ def _extract_amount(text_to_search):
 
 
 def _extract_date(text_to_search):
-    logger.info(f"Attempting to extract date from: '{text_to_search}'")
-    # Normalize spaces in the text to simplify regex matching
+    logger.debug(f"Attempting to extract date from: '{text_to_search}'")
     text_to_search = re.sub(r'\s+', ' ', text_to_search).strip()
-    # ORDER MATTERS: Prioritize DD-MM-YYYY/YY formats common in Thailand.
-    date_patterns_and_formats = [
-        # DD-MM-YYYY/MM/YYYY formats (e.g., 31-01-2023, 1/1/2023)
-        (r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{4})',
-         ['%d-%m-%Y', '%d/%m/%Y', '%d.%m.%Y']),
-        # DD-MM-YY/MM/YY formats (2-digit year, e.g., 31-01-23, 1/1/23)
-        (r'(\d{1,2}[-/.]\d{1,2}[-/.]\d{2})',
-         ['%d-%m-%y', '%d/%m/%y', '%d.%m.%y']),
-        # YYYY-MM-DD/MM/DD formats (e.g., 2023-01-31, 2023/1/5)
-        (r'(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})',
-         ['%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d']),
+
+    # Look for these keywords before extracting dates
+    date_keywords = ["วันที่", "date", "วันที่ขาย",
+                     "วันที่พิมพ์", "วัน", "ออกใบ", "มือจ่าย"]
+
+    # If any keyword exists, only search in the portion *after* the first match
+    keyword_found = False
+    for keyword in date_keywords:
+        if keyword.lower() in text_to_search.lower():
+            idx = text_to_search.lower().find(keyword.lower())
+            # Keep only text after keyword
+            text_to_search = text_to_search[idx:]
+            keyword_found = True
+            break  # Stop at the first keyword found
+
+    if not keyword_found:
+        logger.debug("No date-related keyword found.")
+        return None
+
+    date_patterns = [
+        (r'(\d{1,2}/\d{1,2}/\d{4})', ['%d/%m/%Y'])
     ]
-    for regex_pattern, strptime_formats in date_patterns_and_formats:
-        match = re.search(regex_pattern, text_to_search, re.IGNORECASE)
-        if match:
-            # Extract the captured date string from the regex match
-            date_string_matched = match.group(1).strip()
 
-            # Create a copy for processing to avoid modifying the original matched string
-            processed_date_string = date_string_matched
+    for pattern, formats in date_patterns:
+        match = re.search(pattern, text_to_search)
+        if not match:
+            continue
 
-            # Thai month name replacement logic is no longer needed here.
+        date_str = match.group(1).strip()
 
-            # Handle Thai Buddhist Era (BE) years to Common Era (AD)
-            # Look for 4-digit numbers that are likely BE years (e.g., > 2500)
-            year_match_be = re.search(r'\b(\d{4})\b', processed_date_string)
-            if year_match_be and int(year_match_be.group(1)) > 2500:
-                year_be = int(year_match_be.group(1))
-                year_ad = year_be - 543
-                processed_date_string = processed_date_string.replace(
-                    str(year_be), str(year_ad))
+        for fmt in formats:
+            try:
+                parsed = datetime.strptime(date_str, fmt)
+                return parsed.strftime('%d-%m-%Y')
+            except ValueError:
+                continue
 
-            # Attempt to parse the processed date string with the defined strptime formats
-            for fmt in strptime_formats:
-                try:
-                    parsed_date = datetime.strptime(processed_date_string, fmt)
-                    # If successfully parsed, return the date in ISO format (YYYY-MM-DD)
-                    logger.debug(
-                        f"Successfully parsed '{date_string_matched}' to '{parsed_date.strftime('%Y-%m-%d')}' using format '{fmt}'")
-                    return parsed_date.strftime('%Y-%m-%d')
-                except ValueError:
-                    # If parsing fails with the current format, try the next one
-                    continue
-
-    # If no date is found after trying all patterns and formats
-    logger.debug(
-        f"No date found in '{text_to_search}' after trying all patterns.")
+    logger.debug(f"No valid date found in '{text_to_search}' after keyword.")
     return None
 
 
@@ -186,144 +176,15 @@ def _normalize_gas_type(text):
     return None
 
 
-def extract_with_keywords(data, image_cv, full_ocr_text, result):
-    logger.info("Starting keyword-based extraction.")
-    keywords = {
-        "merchant_name": ["บริษัท", "จำกัด"],
-        "total_amount": ["รวมเงิน", "ยอดรวม", "total"],
-        "date": ["วันที่", "date", "วัน/เวลา", "มือจ่าย", "วันที่ขาย", "วันที่พิมพ์"],
-        "receipt_no": ["เลขที่", "receipt", "no", "tid"],
-        "liters": ["ลิตร", "liters", "litre"],
-        "plate_no": ["ทะเบียน", "plate"],
-        "milestone": ["ระยะ", "km", "กม"],
-        "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
-        "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
-        "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
-        "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
-        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid"]
-    }
+def extract_data(data, image_cv, full_ocr_text, initial_result):
+    logger.info("Starting combined keyword and regex extraction.")
+    # Initialize result dictionary with values from initial_result, converting "N/A" to None
+    result = {field: (initial_result[field] if initial_result[field]
+                      != "N/A" else None) for field in initial_result.keys()}
 
-    collected = {field: (result[field] if result[field]
-                         != "N/A" else None) for field in result.keys()}
-    logger.debug(f"Initial collected fields for keywords: {collected}")
-
-    for i in range(len(data['text'])):
-        word = data['text'][i].strip()
-        if not word:
-            continue
-
-        for field, field_keywords in keywords.items():
-            if collected[field] is not None and field not in ['merchant_name', 'gas_provider', 'gas_name', 'egat_address_th', 'egat_address_eng']:
-                continue
-
-            value = None  # Initialize value here for each field iteration
-
-            if any(kw.lower() in word.lower() for kw in field_keywords):
-                logger.debug(f"Keyword '{word}' matched for field '{field}'.")
-
-                text_to_search = " ".join(
-                    data['text'][i:min(i+5, len(data['text']))])
-
-                if field == "total_amount":
-                    value = _extract_amount(text_to_search)
-                elif field == "VAT":
-                    value = _extract_vat(text_to_search)
-                elif field == "liters":
-                    value = _extract_liters(text_to_search)
-                elif field == "date":
-                    value = _extract_date(text_to_search)
-                elif field == "receipt_no":
-                    # --- NEW LOGIC FOR 'POS' ID ---
-                    if "pos" in word.lower():
-                        # Search for 5-7 consecutive digits in the text_to_search context
-                        pos_id_match = re.search(
-                            r'\b(\d{5,7})\b', text_to_search)
-                        if pos_id_match:
-                            value = pos_id_match.group(1)
-                            logger.debug(
-                                f"POS ID (5-7 digits) found near 'POS': {value}")
-                        else:
-                            logger.debug(
-                                f"POS keyword found, but no 5-7 digit number immediately following in '{text_to_search}'")
-                    # --- END NEW LOGIC ---
-                    # If value not set by POS logic, or it's N/A, try existing _extract_id logic
-                    if value is None or value == "N/A":
-                        # Broader search for 8-20 digit IDs
-                        value = _extract_id(text_to_search, 8, 20)
-                        if not value and 'TID' in word and i + 1 < len(data['text']):
-                            value = _extract_id(data['text'][i+1], 8, 20)
-                elif field == "plate_no":
-                    value = _extract_plate_no(text_to_search)
-                elif field == "milestone":
-                    value = _extract_milestone(text_to_search)
-                elif field == "gas_type":
-                    value = _normalize_gas_type(text_to_search)
-                elif field == 'merchant_name':
-                    if any(kw.lower() == word.lower() for kw in ['บริษัท', 'จำกัด']):
-                        company_name_words = []
-                        for k in range(i, min(i+5, len(data['text']))):
-                            w = data['text'][k].strip()
-                            if w:
-                                company_name_words.append(w)
-                                if 'จำกัด' in w.lower():
-                                    break
-                        if company_name_words:
-                            full_name = " ".join(company_name_words)
-                            if 'บริษัท' in full_name and 'จำกัด' in full_name:
-                                value = full_name
-                elif field in ['egat_address_th', 'egat_address_eng']:
-                    collected_address_words = []
-                    current_line_num = data['line_num'][i]
-                    current_line_num += 1
-                    for k in range(i + 1, len(data['text'])):
-                        if data['text'][k].strip() and data['line_num'][k] == current_line_num:
-                            collected_address_words.append(
-                                data['text'][k].strip())
-                        elif data['text'][k].strip() and data['line_num'][k] == current_line_num + 1:
-                            collected_address_words.append(
-                                data['text'][k].strip())
-                            current_line_num += 1
-                        else:
-                            break
-                    if collected_address_words:
-                        value = " ".join(collected_address_words)
-                        value = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
-                        if value == '':
-                            value = None
-                elif field == "egat_tax_id":
-                    value = _extract_id(word, 13, 13)
-                    if value is None:
-                        value = _extract_id(full_ocr_text, 13, 13)
-
-                if value is not None and value != "N/A":
-                    result[field] = value
-                logger.debug(
-                    f"Keyword extraction: Field '{field}' found value: '{value}'")
-                x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
-                if 0 <= x < x + w <= image_cv.shape[1] and 0 <= y < y + h <= image_cv.shape[0]:
-                    cv2.rectangle(image_cv, (x, y),
-                                  (x + w, y + h), (0, 255, 0), 2)
-                    cv2.putText(image_cv, field, (x, y - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                next_word_idx = i + 1
-                if field not in ['egat_address_th', 'egat_address_eng', 'merchant_name'] and next_word_idx < len(data['text']):
-                    xv, yv = data['left'][next_word_idx], data['top'][next_word_idx]
-                    wv, hv = data['width'][next_word_idx], data['height'][next_word_idx]
-                    if 0 <= xv < xv + wv <= image_cv.shape[1] and 0 <= yv < yv + hv <= image_cv.shape[0]:
-                        cv2.rectangle(image_cv, (xv, yv),
-                                      (xv + wv, yv + hv), (255, 0, 0), 2)
-
-    for field in collected:
-        if collected[field] is not None:
-            result[field] = collected[field]
-    logger.info("Keyword-based extraction completed.")
-    return result, image_cv
-
-
-def extract_with_regex_patterns(full_ocr_text, result):
-    logger.info("Starting regex-based extraction.")
-    patterns = {
+    # Define all global regex patterns here. These are used as a fallback if keyword-based fails.
+    global_regex_patterns = {
+        "date": r"(มือจ่าย\d{2}/\d{2}/\d{4}|วันที่ขาย\d{2}/\d{2}/\d{4}|วันที่พิมพ์\d{2}/\d{2}/\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เลขประจำตัวผู้เสียภาษี|taxid)[:\s]*(\d{10,15})",
@@ -332,55 +193,200 @@ def extract_with_regex_patterns(full_ocr_text, result):
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)"
     }
 
-    for field, pattern in patterns.items():
-        is_placeholder_or_invalid = result[field] is None or result[field] == "N/A"
-        if field in ["total_amount", "VAT", "liters", "milestone", "egat_tax_id", "gas_tax_id"] and not is_placeholder_or_invalid:
-            try:
-                float(str(result[field]).replace(',', ''))
-            except ValueError:
-                is_placeholder_or_invalid = True
+    # Define keyword mappings for local, keyword-based extraction
+    keyword_mappings = {
+        "total_amount": ["เป็นเงิน"],
+        "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
+        "receipt_no": ["เลขที่", "receipt", "no", "tid", "pos"],
+        "liters": ["ลิตร", "liters", "litre", "l"],
+        "plate_no": ["ทะเบียนรถ", "plate"],
+        "milestone": ["ระยะ", "km", "กม", "เลขไมล์"],
+        "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
+        "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
+        "merchant_name": ["บริษัท", "จำกัด"],
+        "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
+        "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
+        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid"]
+    }
 
-        if is_placeholder_or_invalid:
-            value = None  # Correctly initialized here, outside the 'if match' block
-            match = re.search(pattern, full_ocr_text,
-                              re.IGNORECASE | re.DOTALL)
+    # Iterate through each field to extract data
+    fields_to_extract_order = [
+        "date", "total_amount", "receipt_no", "liters", "plate_no", "milestone",
+        "VAT", "gas_type", "merchant_name", "egat_address_th",
+        "egat_address_eng", "egat_tax_id"
+    ]
 
+    for field in fields_to_extract_order:
+        # Skip if the field already has a value from initial_result or a previous pass
+        if result[field] is not None:
+            continue
+
+        extracted_value = None  # Reset for each field
+
+        # --- Attempt 1: Keyword-based extraction (local context) ---
+        # Iterate through words in the OCR data to find keywords
+        if field in keyword_mappings:  # Only attempt if keywords are defined for the field
+            for i in range(len(data['text'])):
+                word = data['text'][i].strip()
+                if not word:
+                    continue
+
+                if any(kw.lower() in word.lower() for kw in keyword_mappings[field]):
+                    logger.debug(
+                        f"Keyword '{word}' matched for field '{field}'. Attempting local extraction.")
+                    # Define context for local extraction (current word and next 4 words)
+                    text_to_search = " ".join(
+                        data['text'][i:min(i+5, len(data['text']))])
+
+                    # Apply field-specific extraction logic using helper functions
+                    if field == "date": # pass
+                        extracted_value = _extract_date(text_to_search)
+                    elif field == "total_amount":  # pass
+                        extracted_value = _extract_amount(text_to_search)
+                    elif field == "VAT":
+                        extracted_value = _extract_vat(text_to_search)
+                    elif field == "liters":
+                        extracted_value = _extract_liters(text_to_search)
+                    elif field == "receipt_no":
+                        # Specific logic for 'POS' ID
+                        if "pos" in word.lower():
+                            pos_id_match = re.search(
+                                r'\b(\d{5,7})\b', text_to_search)
+                            if pos_id_match:
+                                extracted_value = pos_id_match.group(1)
+                                logger.debug(
+                                    f"POS ID (5-7 digits) found near 'POS': {extracted_value}")
+                        # Fallback to general ID extraction if POS didn't yield a result
+                        if extracted_value is None:
+                            extracted_value = _extract_id(
+                                text_to_search, 8, 20)
+                            # Additional check for 'TID' next word
+                            if extracted_value is None and 'TID' in word and i + 1 < len(data['text']):
+                                extracted_value = _extract_id(
+                                    data['text'][i+1], 8, 20)
+                    elif field == "plate_no":
+                        extracted_value = _extract_plate_no(text_to_search)
+                    elif field == "milestone":
+                        extracted_value = _extract_milestone(text_to_search)
+                    elif field == "gas_type":
+                        extracted_value = _normalize_gas_type(text_to_search)
+                    elif field == 'merchant_name':
+                        # Special handling for company names with "บริษัท" and "จำกัด"
+                        if any(kw.lower() == word.lower() for kw in ['บริษัท', 'จำกัด']):
+                            company_name_words = []
+                            # Look a few words ahead
+                            for k in range(i, min(i+5, len(data['text']))):
+                                w = data['text'][k].strip()
+                                if w:
+                                    company_name_words.append(w)
+                                    if 'จำกัด' in w.lower():  # Stop if "จำกัด" is found
+                                        break
+                            if company_name_words:
+                                full_name = " ".join(company_name_words)
+                                if 'บริษัท' in full_name and 'จำกัด' in full_name:
+                                    extracted_value = full_name
+                    elif field in ['egat_address_th', 'egat_address_eng']:
+                        # Logic to extract address lines after EGAT keywords
+                        collected_address_words = []
+                        current_line_num = data['line_num'][i]
+                        for k in range(i + 1, len(data['text'])):
+                            # Collect words on the same or next line
+                            if data['text'][k].strip() and data['line_num'][k] == current_line_num:
+                                collected_address_words.append(
+                                    data['text'][k].strip())
+                            elif data['text'][k].strip() and data['line_num'][k] == current_line_num + 1:
+                                collected_address_words.append(
+                                    data['text'][k].strip())
+                                current_line_num += 1  # Move to the next line number if a word from it is collected
+                            else:
+                                break  # Stop if a gap or completely new line
+                        if collected_address_words:
+                            val = " ".join(collected_address_words)
+                            # Clean address from trailing non-address info (zip code, phone, tax ID etc.)
+                            extracted_value = re.sub(
+                                r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', val, flags=re.IGNORECASE).strip()
+                            if extracted_value == '':  # If cleaning made the address empty
+                                extracted_value = None
+                    # egat_tax_id is mostly handled by global regex, but putting a keyword check here for consistency
+                    elif field == "egat_tax_id":
+                        extracted_value = _extract_id(text_to_search, 13, 13)
+
+                    # If a value was extracted, update result and break from word loop
+                    if extracted_value is not None:
+                        result[field] = extracted_value
+                        logger.debug(
+                            f"Keyword-based extraction successful for '{field}': '{extracted_value}'")
+                        # Visual debugging: Draw bounding box around the keyword
+                        x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
+                        if 0 <= x < x + w <= image_cv.shape[1] and 0 <= y < y + h <= image_cv.shape[0]:
+                            cv2.rectangle(image_cv, (x, y),
+                                          (x + w, y + h), (0, 255, 0), 2)
+                            cv2.putText(image_cv, field, (x, y - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        break  # Break from word loop, move to next field
+
+        # --- Attempt 2: Global Regex if keyword-based failed OR field is better handled by global regex ---
+        # This block runs only if the field is still None OR it's a field primarily extracted by global regex.
+        if result[field] is None and field in global_regex_patterns:
+            logger.debug(f"Attempting global regex for '{field}'.")
+            match = re.search(
+                global_regex_patterns[field], full_ocr_text, re.IGNORECASE | re.DOTALL)
             if match:
-                if field == "egat_address_th":
-                    value = match.group(1).strip()
-                    if value:
-                        value = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
-                elif field == "total_amount":
-                    value = _extract_amount(
+                value_from_regex = None
+
+                if field == "total_amount":
+                    value_from_regex = _extract_amount(
                         match.group('money_amount').strip())
+
+                elif field == "date":
+                    value_from_regex = _extract_date(
+                        match.group(1).strip()
+                    )
+
                 elif field == "egat_tax_id":
-                    value = _extract_id(match.group(1).strip(), 10, 15)
-                elif field == "egat_address_eng":
-                    value = match.group(1).strip()
-                    if value:
-                        value = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value, flags=re.IGNORECASE).strip()
+                    value_from_regex = _extract_id(match.group(
+                        1).strip(), 10, 15)  # Group 1 for the ID
                 elif field == "merchant_name":
                     val = match.group(0).strip()
                     if val.startswith('บริษัท') and val.endswith('จำกัด'):
                         core_name = val[len('บริษัท'):-len('จำกัด')].strip()
-                        value = f'บริษัท {core_name} จำกัด'
+                        value_from_regex = f'บริษัท {core_name} จำกัด'
                     else:
-                        value = val
+                        value_from_regex = val  # Fallback to raw regex match
                 elif field == "gas_type":
-                    value = _normalize_gas_type(match.group(0).strip())
+                    value_from_regex = _normalize_gas_type(
+                        match.group(0).strip())
+                elif field in ["egat_address_th", "egat_address_eng"]:
+                    # Group 1 for the address text
+                    value_from_regex = match.group(1).strip()
+                    if value_from_regex:
+                        value_from_regex = re.sub(
+                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value_from_regex, flags=re.IGNORECASE).strip()
+                        if value_from_regex == '':
+                            value_from_regex = None
+                # For other fields where group(1) directly holds the value
+                else:
+                    value_from_regex = match.group(1).strip() if len(
+                        match.groups()) > 0 else match.group(0).strip()
 
-            if value is not None and value != result[field]:
-                result[field] = value
-                logger.debug(
-                    f"Regex extraction: Field '{field}' found value: '{value}'")
+                # End of regex
+                if value_from_regex is not None:
+                    result[field] = value_from_regex
+                    logger.debug(
+                        f"Global regex extraction successful for '{field}': '{value_from_regex}'")
+                else:
+                    logger.debug(
+                        f"Global regex for '{field}' matched but extracted value was empty/None.")
             else:
                 logger.debug(
-                    f"Regex pattern for '{field}' did not match in text.")
+                    f"Global regex pattern for '{field}' did not match in full OCR text.")
 
-    for field in result:
-        if result[field] == "N/A":
-            result[field] = None
-    logger.info("Regex-based extraction completed.")
-    return result
+        # If after both attempts, the field is still None, ensure it's marked as "N/A" for final output consistency
+        if result[field] is None:
+            logger.debug(
+                f"Field '{field}' remains None after all extraction attempts.")
+            # Set back to "N/A" for consistency if nothing found
+            result[field] = "N/A"
+        logger.info(f"END {field}")
+    logger.info("Combined extraction completed.")
+    return result, image_cv

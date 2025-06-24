@@ -35,7 +35,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
             - str: The full extracted OCR text, now processed to be lowercase with no spaces.
     """
     # Initialize result dictionary with "N/A" for all fields.
-    result = {
+    initial_result = {
         "merchant_name": "N/A",
         "date": "N/A",
         "total_amount": "N/A",
@@ -56,7 +56,10 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     }
 
     # Convert PIL Image to OpenCV format for drawing bounding boxes later
-    image_cv = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+    # Initialize debug_image_cv2 and parsed_data here with their default values
+    # These will be updated if an extractor module is successfully loaded and run.
+    debug_image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+    parsed_data = initial_result.copy() # Start parsed_data with the initial_result values
 
     # --- Preprocessing Improvements Start ---
     img_np = np.array(image_pil)
@@ -87,8 +90,6 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
             "Using generic OCR processing as no specific receipt_type provided.\n")
 
     # Perform OCR to get detailed word-by-word data (for keyword-based extraction)
-    # NOTE: pytesseract.image_to_data's output structure might still be useful
-    # even with global space removal for string matching.
     data = pytesseract.image_to_data(
         processed_image_for_ocr, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT)
 
@@ -99,33 +100,23 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # *** NEW GLOBAL CLEANING STEP ***
     # Remove all spaces and convert to lowercase for consistent matching
     cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
-    # This will be the 'extracted_text' returned and used by extractors
-
-    # Perform keyword-based extraction
-    # Pass the globally cleaned text for consistency
-    if extractor_module and hasattr(extractor_module, 'extract_with_keywords'):
-        # Corrected line: Passing image_cv and cleaned_extracted_text_for_matching
-        result, image_cv = extractor_module.extract_with_keywords(
-            data, image_cv, cleaned_extracted_text_for_matching, result)
+    
+    # Call the combined extraction function from the loaded extractor module ONLY if it exists
+    if extractor_module: # <--- Added conditional check here
+        parsed_data, debug_image_cv2 = extractor_module.extract_data(
+            data, debug_image_cv2, cleaned_extracted_text_for_matching, initial_result) # Pass initial_result here
     else:
-        pass  # Placeholder for generic keyword extraction
-
-    # Perform regex-based extraction
-    # Pass the globally cleaned text for consistency
-    if extractor_module and hasattr(extractor_module, 'extract_with_regex_patterns'):
-        # Corrected line: Passing cleaned_extracted_text_for_matching
-        result = extractor_module.extract_with_regex_patterns(
-            cleaned_extracted_text_for_matching, result)
-    else:
-        pass  # Placeholder for generic regex extraction
+        # If no specific extractor module is loaded, parsed_data remains as initial_result.copy()
+        # and debug_image_cv2 remains as the initially converted image.
+        pass
 
     # Final cleanup: Change any remaining "N/A" to None for database compatibility
-    for field in result:
-        if result[field] == "N/A":
-            result[field] = None
+    for field in parsed_data: # Operating on parsed_data
+        if parsed_data[field] == "N/A":
+            parsed_data[field] = None
 
     # Return the globally cleaned text (no spaces, lowercase)
-    return result, image_cv, cleaned_extracted_text_for_matching
+    return parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching
 
 
 # --- Main script execution ---
