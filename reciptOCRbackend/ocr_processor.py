@@ -59,7 +59,8 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # Initialize debug_image_cv2 and parsed_data here with their default values
     # These will be updated if an extractor module is successfully loaded and run.
     debug_image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
-    parsed_data = initial_result.copy() # Start parsed_data with the initial_result values
+    # Start parsed_data with the initial_result values
+    parsed_data = initial_result.copy()
 
     # --- Preprocessing Improvements Start ---
     img_np = np.array(image_pil)
@@ -100,18 +101,19 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # *** NEW GLOBAL CLEANING STEP ***
     # Remove all spaces and convert to lowercase for consistent matching
     cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
-    
+
     # Call the combined extraction function from the loaded extractor module ONLY if it exists
-    if extractor_module: # <--- Added conditional check here
+    if extractor_module:  # <--- Added conditional check here
         parsed_data, debug_image_cv2 = extractor_module.extract_data(
-            data, debug_image_cv2, cleaned_extracted_text_for_matching, initial_result) # Pass initial_result here
+            # Pass initial_result here
+            data, debug_image_cv2, cleaned_extracted_text_for_matching, initial_result)
     else:
         # If no specific extractor module is loaded, parsed_data remains as initial_result.copy()
         # and debug_image_cv2 remains as the initially converted image.
         pass
 
     # Final cleanup: Change any remaining "N/A" to None for database compatibility
-    for field in parsed_data: # Operating on parsed_data
+    for field in parsed_data:  # Operating on parsed_data
         if parsed_data[field] == "N/A":
             parsed_data[field] = None
 
