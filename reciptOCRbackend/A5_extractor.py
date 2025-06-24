@@ -137,11 +137,15 @@ def _extract_vat(text_to_search):
 
 
 def _extract_plate_no(text_to_search):
+    # Regex to find "ทะเบียนรถ" followed by the plate number pattern
+    # It captures the plate number in group 1
     plate_no_match = re.search(
-        # Thai or English plate number
-        r'[ก-ฮa-zA-Z]{1,2}\s*\d{1,4}[ก-ฮa-zA-Z]{0,3}', text_to_search)
+        r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{8})', text_to_search, re.IGNORECASE)
     if plate_no_match:
-        return plate_no_match.group(0).replace(" ", "")
+        # Return the captured group (the plate number itself) with spaces removed
+        logger.debug(
+            f"Extracted plate number: {plate_no_match.group(1).replace(' ', '')}")
+        return plate_no_match.group(1).replace(" ", "")
     logger.debug(f"No plate number found in '{text_to_search}'")
     return None
 
@@ -187,33 +191,41 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "date": r"(มือจ่าย\d{2}/\d{2}/\d{4}|วันที่ขาย\d{2}/\d{2}/\d{4}|วันที่พิมพ์\d{2}/\d{2}/\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
-        "egat_tax_id": r"(?:เลขประจำตัวผู้เสียภาษี|taxid)[:\s]*(\d{10,15})",
+        "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
         "merchant_name": r"(บริษัท.*?กัด)",
         "total_amount": r"(?:fleetcard.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
-        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)"
+        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
+        "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
+        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
+        "gas_tax_id": r'(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})',
+        "milestone": r'(?:เลขไมล์|ไมล์)[:\s]*(.{6})',
+        "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
     }
 
     # Define keyword mappings for local, keyword-based extraction
     keyword_mappings = {
         "total_amount": ["เป็นเงิน"],
         "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
-        "receipt_no": ["เลขที่", "receipt", "no", "tid", "pos"],
+        "receipt_no": ["เลขที่", "เลขใบกำกับภาษี"],
         "liters": ["ลิตร", "liters", "litre", "l"],
-        "plate_no": ["ทะเบียนรถ", "plate"],
+        "plate_no": ["ทะเบียนรถ", "เบียนรถ"],
         "milestone": ["ระยะ", "km", "กม", "เลขไมล์"],
         "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
+        "gas_address": ["ที่อยู่", "อยู่"],
         "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
         "merchant_name": ["บริษัท", "จำกัด"],
         "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
         "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
-        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid"]
+        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid", "099"],
+        "gas_provider": ["ptt"],
+        "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี"],
     }
 
     # Iterate through each field to extract data
     fields_to_extract_order = [
         "date", "total_amount", "receipt_no", "liters", "plate_no", "milestone",
-        "VAT", "gas_type", "merchant_name", "egat_address_th",
-        "egat_address_eng", "egat_tax_id"
+        "VAT", "gas_type", "gas_address", "merchant_name", "egat_address_th",
+        "egat_address_eng", "egat_tax_id", "gas_provider", "gas_tax_id"
     ]
 
     for field in fields_to_extract_order:
@@ -239,31 +251,19 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                         data['text'][i:min(i+5, len(data['text']))])
 
                     # Apply field-specific extraction logic using helper functions
-                    if field == "date": # pass
+                    if field == "date":
                         extracted_value = _extract_date(text_to_search)
-                    elif field == "total_amount":  # pass
+                    elif field == "total_amount":
                         extracted_value = _extract_amount(text_to_search)
                     elif field == "VAT":
                         extracted_value = _extract_vat(text_to_search)
                     elif field == "liters":
                         extracted_value = _extract_liters(text_to_search)
                     elif field == "receipt_no":
-                        # Specific logic for 'POS' ID
-                        if "pos" in word.lower():
-                            pos_id_match = re.search(
-                                r'\b(\d{5,7})\b', text_to_search)
-                            if pos_id_match:
-                                extracted_value = pos_id_match.group(1)
-                                logger.debug(
-                                    f"POS ID (5-7 digits) found near 'POS': {extracted_value}")
-                        # Fallback to general ID extraction if POS didn't yield a result
-                        if extracted_value is None:
-                            extracted_value = _extract_id(
-                                text_to_search, 8, 20)
-                            # Additional check for 'TID' next word
-                            if extracted_value is None and 'TID' in word and i + 1 < len(data['text']):
-                                extracted_value = _extract_id(
-                                    data['text'][i+1], 8, 20)
+                        receipt_match = re.search(
+                            r'((?:TIO)?\d{15}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})', text_to_search, re.IGNORECASE)
+                        if receipt_match:
+                            extracted_value = receipt_match.group(1).strip()
                     elif field == "plate_no":
                         extracted_value = _extract_plate_no(text_to_search)
                     elif field == "milestone":
@@ -307,9 +307,14 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                                 r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', val, flags=re.IGNORECASE).strip()
                             if extracted_value == '':  # If cleaning made the address empty
                                 extracted_value = None
-                    # egat_tax_id is mostly handled by global regex, but putting a keyword check here for consistency
-                    elif field == "egat_tax_id":
+                    elif field in ['egat_tax_id', 'gas_tax_id']:
                         extracted_value = _extract_id(text_to_search, 13, 13)
+                    elif field == "gas_provider":
+                        lower_text = text_to_search.lower()
+                        if "ptt" in lower_text:
+                            extracted_value = "PTT"
+                        else:
+                            extracted_value = "Bangchak"
 
                     # If a value was extracted, update result and break from word loop
                     if extracted_value is not None:
@@ -337,15 +342,13 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                 if field == "total_amount":
                     value_from_regex = _extract_amount(
                         match.group('money_amount').strip())
-
                 elif field == "date":
                     value_from_regex = _extract_date(
                         match.group(1).strip()
                     )
-
-                elif field == "egat_tax_id":
+                elif field in ["egat_tax_id", "gas_tax_id"]:
                     value_from_regex = _extract_id(match.group(
-                        1).strip(), 10, 15)  # Group 1 for the ID
+                        1).strip(), 10, 15)
                 elif field == "merchant_name":
                     val = match.group(0).strip()
                     if val.startswith('บริษัท') and val.endswith('จำกัด'):
@@ -356,15 +359,26 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                 elif field == "gas_type":
                     value_from_regex = _normalize_gas_type(
                         match.group(0).strip())
+                elif field == "gas_address":
+                    value_from_regex = match.group(1).strip()
+                    if value_from_regex:
+                        value_from_regex = re.sub(
+                            r'\s*(?:โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid|ใบเสร็จรับเงิน).*$', '', value_from_regex, flags=re.IGNORECASE).strip()
+                        if value_from_regex == '':
+                            value_from_regex = None
                 elif field in ["egat_address_th", "egat_address_eng"]:
                     # Group 1 for the address text
                     value_from_regex = match.group(1).strip()
                     if value_from_regex:
                         value_from_regex = re.sub(
-                            r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', value_from_regex, flags=re.IGNORECASE).strip()
+                            r'\s*(?:โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*$', '', value_from_regex, flags=re.IGNORECASE).strip()
                         if value_from_regex == '':
                             value_from_regex = None
-                # For other fields where group(1) directly holds the value
+                elif field == "plate_no":
+                    value_from_regex = match.group(1).strip().replace(" ", "")
+                elif field == "receipt_no":
+                    value_from_regex = match.group(1).strip()
+
                 else:
                     value_from_regex = match.group(1).strip() if len(
                         match.groups()) > 0 else match.group(0).strip()
