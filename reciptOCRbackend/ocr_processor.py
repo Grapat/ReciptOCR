@@ -65,12 +65,23 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # --- Preprocessing Improvements Start ---
     img_np = np.array(image_pil)
     img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    img_denoised = cv2.medianBlur(img_cv_gray, 5)
+    img_denoised = cv2.medianBlur(img_cv_gray, 7)
+    # img_rotated = cv2.rotate(img_denoised, cv2.ROTATE_90_COUNTERCLOCKWISE)
     img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
                                        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                        cv2.THRESH_BINARY, 11, 2)
     processed_image_for_ocr = Image.fromarray(img_thresh)
     # --- Preprocessing Improvements End ---
+
+    # --- ADD THIS SECTION FOR DEBUGGING PREPROCESSED IMAGE ---
+    timestamp = datetime.now().strftime("%Y%m%d")
+    preprocessed_debug_image_path = os.path.join(
+        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_{receipt_type}_{timestamp}_{os.path.basename(original_filename)}')
+    # Convert PIL Image back to OpenCV format for saving if needed, or save directly from PIL
+    processed_image_for_ocr.save(preprocessed_debug_image_path)
+    sys.stderr.write(
+        f"Preprocessed debug image saved to: {preprocessed_debug_image_path}\n")
+    # --- END ADDITION ---
 
     # Try to dynamically load the specific extractor module
     extractor_module = None
