@@ -65,7 +65,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     # --- Preprocessing Improvements Start ---
     img_np = np.array(image_pil)
     img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    img_denoised = cv2.medianBlur(img_cv_gray, 7)
+    img_denoised = cv2.medianBlur(img_cv_gray, 3)
     # img_rotated = cv2.rotate(img_denoised, cv2.ROTATE_90_COUNTERCLOCKWISE)
     img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
                                        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,

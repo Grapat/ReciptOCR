@@ -59,41 +59,108 @@ def _extract_date(text_to_search):
 
     # Look for these keywords before extracting dates
     date_keywords = ["วันที่", "date", "วันที่ขาย",
-                     "วันที่พิมพ์", "วัน", "ออกใบ", "มือจ่าย"]
+                     "วันที่พิมพ์", "วัน", "ออกใบ", "มือจ่าย", "date:"]
 
-    # If any keyword exists, only search in the portion *after* the first match
+    keyword_found_text = text_to_search
     keyword_found = False
     for keyword in date_keywords:
         if keyword.lower() in text_to_search.lower():
             idx = text_to_search.lower().find(keyword.lower())
-            # Keep only text after keyword
-            text_to_search = text_to_search[idx:]
+            keyword_found_text = text_to_search[idx:]
             keyword_found = True
-            break  # Stop at the first keyword found
+            break
 
     if not keyword_found:
-        logger.debug("No date-related keyword found.")
+        logger.debug(f"No date-related keyword found in '{text_to_search}'.")
         return None
 
     date_patterns = [
-        (r'(\d{1,2}/\d{1,2}/\d{4})', ['%d/%m/%Y'])
+        # YYYY/MM/DD and YYYY-MM-DD
+        (r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})', ['%Y/%m/%d', '%Y-%m-%d']),
+        # DD/MM/YYYY and DD-MM-YYYY
+        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})', ['%d/%m/%Y', '%d-%m-%Y']),
+        # MM/DD/YYYY and MM-DD-YYYY
+        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})', ['%m/%d/%Y', '%m-%d/%Y']),
+        # DD/MM/YY and DD-MM-YY (2-digit year)
+        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{2})', ['%d/%m/%y', '%d-%m-%y']),
+        # MM/DD/YY and MM-DD-YY (2-digit year)
+        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{2})', ['%m/%d/%y', '%m-%d/%y']),
     ]
 
+    current_gregorian_year = datetime.now().year
+    current_buddhist_year = current_gregorian_year + 543
+
     for pattern, formats in date_patterns:
-        match = re.search(pattern, text_to_search)
-        if not match:
-            continue
+        for match in re.finditer(pattern, keyword_found_text):
+            date_str = match.group(1).strip()
+            logger.debug(
+                f"Found potential date string: '{date_str}' matching pattern: '{pattern}'")
 
-        date_str = match.group(1).strip()
+            parsed_date_obj = None
 
-        for fmt in formats:
-            try:
-                parsed = datetime.strptime(date_str, fmt)
-                return parsed.strftime('%d-%m-%Y')
-            except ValueError:
-                continue
+            # --- Internal Year Conversion Logic (formerly _convert_input_year_to_gregorian_for_parsing) ---
+            def _get_gregorian_year_for_parsing(year_int_from_str):
+                # If it's a 4-digit year and likely a Buddhist year (e.g., 25xx)
+                if len(str(year_int_from_str)) == 4 and year_int_from_str > 2400 and year_int_from_str <= current_buddhist_year + 10:
+                    return year_int_from_str - 543
 
-    logger.debug(f"No valid date found in '{text_to_search}' after keyword.")
+                # For 2-digit years, `datetime.strptime` with `%y` handles the century pivot
+                # (00-68 -> 20xx, 69-99 -> 19xx). We return it as is for `strptime` to interpret.
+                return year_int_from_str
+            # --- End Internal Year Conversion Logic ---
+
+            # Attempt 1: Try parsing directly (for Gregorian years or %y interpretation)
+            for fmt in formats:
+                try:
+                    parsed_date_obj = datetime.strptime(date_str, fmt)
+                    logger.debug(
+                        f"Direct parse successful: '{date_str}' with format '{fmt}' to '{parsed_date_obj}'")
+                    break
+                except ValueError:
+                    pass
+
+            # If direct parsing failed, attempt to adjust year (assuming Buddhist input year) and retry
+            if parsed_date_obj is None:
+                year_part_match = re.search(
+                    r'(\d{2,4})$', date_str)  # Get last 2 or 4 digits
+                if year_part_match:
+                    original_year_str = year_part_match.group(1)
+                    try:
+                        original_year_int = int(original_year_str)
+                        # Use the internal helper to get a Gregorian year for parsing
+                        gregorian_year_for_parsing = _get_gregorian_year_for_parsing(
+                            original_year_int)
+
+                        if gregorian_year_for_parsing is not None and gregorian_year_for_parsing != original_year_int:
+                            # Reconstruct date string with Gregorian year
+                            temp_date_str = re.sub(r'\d{2,4}$', str(
+                                gregorian_year_for_parsing), date_str)
+                            logger.debug(
+                                f"Adjusted date string for parsing: '{temp_date_str}'")
+
+                            # Try parsing with the adjusted string
+                            for fmt in formats:
+                                # Adjust format string if it was expecting %y but now has %Y
+                                adjusted_fmt = fmt.replace('%y', '%Y')
+                                try:
+                                    parsed_date_obj = datetime.strptime(
+                                        temp_date_str, adjusted_fmt)
+                                    logger.debug(
+                                        f"Adjusted parse successful: '{temp_date_str}' with format '{adjusted_fmt}' to '{parsed_date_obj}'")
+                                    break
+                                except ValueError:
+                                    pass
+                    except ValueError:
+                        logger.debug(
+                            f"Year part '{original_year_str}' not an integer.")
+
+            if parsed_date_obj:
+                # Convert the Gregorian year to Buddhist year for the final output string
+                buddhist_year = parsed_date_obj.year + 543
+                return parsed_date_obj.strftime(f'%d-%m-{buddhist_year}')
+
+    logger.debug(
+        f"No valid date found in '{keyword_found_text}' after processing all patterns.")
     return None
 
 
@@ -188,12 +255,12 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
 
     # Define all global regex patterns here. These are used as a fallback if keyword-based fails.
     global_regex_patterns = {
-        "date": r"(date\d{2}/\d{2}/\d{4}|ate\d{2}/\d{2}/\d{4})",
+        "date": r"(?:date.*?)(?P<date>\d{2}/\d{2}/\d{2})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
         "merchant_name": r"(บริษัท.*?กัด)",
-        "total_amount": r"(?:fleetcard.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
+        "total_amount": r"(?:thb.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
         "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
         "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
@@ -205,7 +272,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
     # Define keyword mappings for local, keyword-based extraction
     keyword_mappings = {
         "total_amount": ["เป็นเงิน"],
-        "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
+        "date": ["วันที่พิมพ์", "วันที่", "date", "date:."],
         "receipt_no": ["เลขที่", "เลขใบกำกับภาษี"],
         "liters": ["ลิตร", "liters", "litre", "l"],
         "plate_no": ["ทะเบียนรถ", "เบียนรถ"],

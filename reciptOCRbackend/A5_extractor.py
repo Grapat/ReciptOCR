@@ -125,7 +125,7 @@ def _extract_liters(text_to_search):
 
 def _extract_vat(text_to_search):
     vat_match = re.search(
-        r'(?:VAT|ภาษีมูลค่าเพิ่ม)[\s:]*(\d{1,}(?:[.,]\d{2})?)', text_to_search, re.IGNORECASE)
+        r'(?:total|vat.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search, re.IGNORECASE)
     if vat_match:
         value = vat_match.group(1).replace(',', '')
         try:
@@ -193,7 +193,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
         "merchant_name": r"(บริษัท.*?กัด)",
-        "total_amount": r"(?:fleetcard.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
+        "total_amount": r"(?:fleet.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
         "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
         "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
