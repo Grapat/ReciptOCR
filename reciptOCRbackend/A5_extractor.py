@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 import logging
 import os
+from PIL import Image  # Make sure PIL is imported for image_pil handling
+import pytesseract  # Import pytesseract
 
 # This will create a 'logs_a5' folder right next to A5_extractor.py
 LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs_a5')
@@ -25,9 +27,17 @@ if not logger.handlers:
     logger.addHandler(file_handler)
 # --- Logging Configuration End ---
 
-# Helper functions for common extraction logic
+# --- Global settings for OCR (can be passed from ocr_processor if preferred) ---
+OCR_LANGUAGES = 'eng+tha'
+# Assuming PROCESSED_UPLOAD_FOLDER is relative to the backend's root
+# This will be used to save debug preprocessed images
+PROCESSED_UPLOAD_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'processed_uploads')
+os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
+# --- End Global settings ---
 
 
+# Helper functions for common extraction logic (unchanged from your file)
 def _extract_amount(text_to_search):
     amount_match = re.search(
         r'(\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search)
@@ -56,24 +66,6 @@ def _extract_amount(text_to_search):
 def _extract_date(text_to_search):
     logger.debug(f"Attempting to extract date from: '{text_to_search}'")
     text_to_search = re.sub(r'\s+', ' ', text_to_search).strip()
-
-    # Look for these keywords before extracting dates
-    date_keywords = ["วันที่", "date", "วันที่ขาย",
-                     "วันที่พิมพ์", "วัน", "ออกใบ", "มือจ่าย"]
-
-    # If any keyword exists, only search in the portion *after* the first match
-    keyword_found = False
-    for keyword in date_keywords:
-        if keyword.lower() in text_to_search.lower():
-            idx = text_to_search.lower().find(keyword.lower())
-            # Keep only text after keyword
-            text_to_search = text_to_search[idx:]
-            keyword_found = True
-            break  # Stop at the first keyword found
-
-    if not keyword_found:
-        logger.debug("No date-related keyword found.")
-        return None
 
     date_patterns = [
         (r'(\d{1,2}/\d{1,2}/\d{4})', ['%d/%m/%Y'])
@@ -180,20 +172,80 @@ def _normalize_gas_type(text):
     return None
 
 
-def extract_data(data, image_cv, full_ocr_text, initial_result):
-    logger.info("Starting combined keyword and regex extraction.")
+# Modified extract_data function to include preprocessing and OCR
+def extract_data(image_pil, original_filename, initial_result):  # New signature
+    logger.info("Starting combined keyword and regex extraction for A5 type.")
     # Initialize result dictionary with values from initial_result, converting "N/A" to None
     result = {field: (initial_result[field] if initial_result[field]
                       != "N/A" else None) for field in initial_result.keys()}
 
+    # Ensure receipt_type_used is set
+    result["receipt_type_used"] = "A5"
+
+    # --- Preprocessing specific to A5 receipt type starts here ---
+    img_np = np.array(image_pil)
+    # Convert to BGR for OpenCV drawing if the original is RGB
+    debug_image_cv2 = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+
+    # Denoising: Median Blur is good for thermal receipts
+    # Kernel size 3 is a good starting point
+    img_denoised = cv2.medianBlur(img_cv_gray, 1)
+
+    # Adaptive Thresholding: Crucial for varied lighting. Experiment with blockSize and C
+    # For A5.jpg (clear image), blockSize 21 and C=5 or C=2 should work well
+    img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
+                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY, 21, 10)  # <--- TWEAK THESE VALUES FOR A5 TYPE
+
+    # Optional: Morphological operations (uncomment and adjust as needed)
+    # kernel = np.ones((2,2), np.uint8) # Define kernel here if uncommenting
+    # img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, kernel, iterations=1) # Remove small noise
+    # img_thresh = cv2.dilate(img_thresh, kernel, iterations=1) # Thicken thin text slightly
+
+    # Convert the processed OpenCV image (numpy array) back to PIL for pytesseract
+    processed_image_for_ocr = Image.fromarray(img_thresh)
+
+    # --- Optional: Save preprocessed debug image from within the extractor ---
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S")  # Include time for uniqueness
+    # Use original_filename for more context in debug file
+    base_original_filename = os.path.basename(original_filename)
+    preprocessed_debug_image_path = os.path.join(
+        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_A5_{timestamp}_{base_original_filename}')
+    processed_image_for_ocr.save(preprocessed_debug_image_path)
+    logger.debug(
+        f"Preprocessed debug image saved to: {preprocessed_debug_image_path}")
+    # --- Preprocessing specific to A5 receipt type ends here ---
+
+    # --- Tesseract OCR specific to A5 receipt type starts here ---
+    # Define Tesseract configuration string
+    # For A5.jpg, `--psm 6` (single uniform block) or `--psm 4` (single column) are good starting points.
+    # Keep `--oem 1` for the LSTM engine.
+    tesseract_config = r'--oem 1 --psm 3'  # <--- TWEAK THIS FOR A5 TYPE
+
+    # Perform OCR to get detailed word-by-word data
+    data = pytesseract.image_to_data(
+        processed_image_for_ocr, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
+
+    # Perform OCR to get the full raw text
+    raw_ocr_text = pytesseract.image_to_string(
+        processed_image_for_ocr, lang=OCR_LANGUAGES, config=tesseract_config)
+
+    # Clean the extracted text for matching (lowercase, no spaces)
+    cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
+    # --- Tesseract OCR specific to A5 receipt type ends here ---
+
     # Define all global regex patterns here. These are used as a fallback if keyword-based fails.
     global_regex_patterns = {
-        "date": r"(มือจ่าย\d{2}/\d{2}/\d{4}|วันที่ขาย\d{2}/\d{2}/\d{4}|วันที่พิมพ์\d{2}/\d{2}/\d{4})",
+        # Adjusted date regex for better capture after keywords
+        "date": r"(?:วันที่พิมพ์|มือจ่าย)\s*(\d{1,2}/\d{1,2}/\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
-        "merchant_name": r"(บริษัท.*?กัด)",
-        "total_amount": r"(?:fleet.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
+        "merchant_name": r"((บริษัท.*?กัด)|(ห้างหุ้น.*?กัด))",
+        "total_amount": r"(?:fleet.*?)(?P<money_amount>\d{1,3}(?:\d{3})*\.\d{2}(?!\d))",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
         "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
         "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
@@ -202,7 +254,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
     }
 
-    # Define keyword mappings for local, keyword-based extraction
+    # Define keyword mappings for local, keyword-based extraction (unchanged from your file)
     keyword_mappings = {
         "total_amount": ["เป็นเงิน"],
         "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
@@ -221,7 +273,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี"],
     }
 
-    # Iterate through each field to extract data
+    # Iterate through each field to extract data (unchanged from your file)
     fields_to_extract_order = [
         "date", "total_amount", "receipt_no", "liters", "plate_no", "milestone",
         "VAT", "gas_type", "gas_address", "merchant_name", "egat_address_th",
@@ -323,10 +375,10 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                             f"Keyword-based extraction successful for '{field}': '{extracted_value}'")
                         # Visual debugging: Draw bounding box around the keyword
                         x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
-                        if 0 <= x < x + w <= image_cv.shape[1] and 0 <= y < y + h <= image_cv.shape[0]:
-                            cv2.rectangle(image_cv, (x, y),
+                        if 0 <= x < x + w <= debug_image_cv2.shape[1] and 0 <= y < y + h <= debug_image_cv2.shape[0]:
+                            cv2.rectangle(debug_image_cv2, (x, y),
                                           (x + w, y + h), (0, 255, 0), 2)
-                            cv2.putText(image_cv, field, (x, y - 10),
+                            cv2.putText(debug_image_cv2, field, (x, y - 10),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                         break  # Break from word loop, move to next field
 
@@ -335,7 +387,8 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         if result[field] is None and field in global_regex_patterns:
             logger.debug(f"Attempting global regex for '{field}'.")
             match = re.search(
-                global_regex_patterns[field], full_ocr_text, re.IGNORECASE | re.DOTALL)
+                # Use cleaned_extracted_text_for_matching
+                global_regex_patterns[field], cleaned_extracted_text_for_matching, re.IGNORECASE | re.DOTALL)
             if match:
                 value_from_regex = None
 
@@ -403,4 +456,6 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
             result[field] = "N/A"
         logger.info(f"END {field}")
     logger.info("Combined extraction completed.")
-    return result, image_cv
+
+    # Return the updated parsed data, debug image, and cleaned OCR text
+    return result, debug_image_cv2, cleaned_extracted_text_for_matching

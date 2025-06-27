@@ -5,7 +5,7 @@ import io
 import pytesseract
 import re
 import cv2
-import numpy as np
+import numpy as np # Still needed for initial image_pil to np.array if extract_data expects it
 import json
 from datetime import datetime
 import importlib
@@ -19,7 +19,7 @@ PROCESSED_UPLOAD_FOLDER = os.path.join(
 os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
 
 
-def dynamic_parse_ocr(image_pil, receipt_type="generic"):
+def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unknown"): # Added original_filename arg
     """
     Performs dynamic OCR parsing on a given PIL image, attempting to extract
     various fields from a receipt, including EGAT specific information.
@@ -27,6 +27,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
     Args:
         image_pil (PIL.Image.Image): The input receipt image as a PIL Image object.
         receipt_type (str): The type of receipt (e.g., "KBPTT", "KTBCP"), used to load specific extractor logic.
+        original_filename (str): The original filename for debug output.
 
     Returns:
         tuple: A tuple containing:
@@ -34,7 +35,6 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
             - numpy.ndarray: An OpenCV image with bounding boxes drawn for debugging.
             - str: The full extracted OCR text, now processed to be lowercase with no spaces.
     """
-    # Initialize result dictionary with "N/A" for all fields.
     initial_result = {
         "merchant_name": "N/A",
         "date": "N/A",
@@ -55,33 +55,26 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
         "egat_tax_id": "N/A",
     }
 
-    # Convert PIL Image to OpenCV format for drawing bounding boxes later
     # Initialize debug_image_cv2 and parsed_data here with their default values
-    # These will be updated if an extractor module is successfully loaded and run.
     debug_image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
-    # Start parsed_data with the initial_result values
     parsed_data = initial_result.copy()
 
-    # --- Preprocessing Improvements Start ---
-    img_np = np.array(image_pil)
-    img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
-    img_denoised = cv2.medianBlur(img_cv_gray, 3)
-    # img_rotated = cv2.rotate(img_denoised, cv2.ROTATE_90_COUNTERCLOCKWISE)
-    img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
-                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY, 11, 2)
-    processed_image_for_ocr = Image.fromarray(img_thresh)
+    # --- Preprocessing Improvements Start (REMOVED FROM HERE) ---
+    # The preprocessing will now happen inside the extractor module
     # --- Preprocessing Improvements End ---
 
-    # --- ADD THIS SECTION FOR DEBUGGING PREPROCESSED IMAGE ---
-    timestamp = datetime.now().strftime("%Y%m%d")
-    preprocessed_debug_image_path = os.path.join(
-        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_{receipt_type}_{timestamp}_{os.path.basename(original_filename)}')
-    # Convert PIL Image back to OpenCV format for saving if needed, or save directly from PIL
-    processed_image_for_ocr.save(preprocessed_debug_image_path)
-    sys.stderr.write(
-        f"Preprocessed debug image saved to: {preprocessed_debug_image_path}\n")
+    # --- ADD THIS SECTION FOR DEBUGGING PREPROCESSED IMAGE (REMOVE OR MOVE) ---
+    # This debugging block for preprocessed image should likely be moved
+    # into the extractor module, as that's where preprocessing now happens.
+    # For now, let's remove it from here.
+    # timestamp = datetime.now().strftime("%Y%m%d")
+    # preprocessed_debug_image_path = os.path.join(
+    #     PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_{receipt_type}_{timestamp}_{os.path.basename(original_filename)}')
+    # processed_image_for_ocr.save(preprocessed_debug_image_path)
+    # sys.stderr.write(
+    #     f"Preprocessed debug image saved to: {preprocessed_debug_image_path}\n")
     # --- END ADDITION ---
+
 
     # Try to dynamically load the specific extractor module
     extractor_module = None
@@ -101,36 +94,39 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic"):
         sys.stderr.write(
             "Using generic OCR processing as no specific receipt_type provided.\n")
 
-    # Perform OCR to get detailed word-by-word data (for keyword-based extraction)
-    data = pytesseract.image_to_data(
-        processed_image_for_ocr, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT)
-
-    # Perform OCR to get the full text
-    raw_ocr_text = pytesseract.image_to_string(
-        processed_image_for_ocr, lang=OCR_LANGUAGES)
-
-    # *** NEW GLOBAL CLEANING STEP ***
-    # Remove all spaces and convert to lowercase for consistent matching
-    cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
-
     # Call the combined extraction function from the loaded extractor module ONLY if it exists
-    if extractor_module:  # <--- Added conditional check here
-        parsed_data, debug_image_cv2 = extractor_module.extract_data(
-            # Pass initial_result here
-            data, debug_image_cv2, cleaned_extracted_text_for_matching, initial_result)
+    if extractor_module:
+        # Pass the original PIL image to the extractor
+        parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching = \
+            extractor_module.extract_data(image_pil, original_filename, initial_result) # Pass original_filename
     else:
-        # If no specific extractor module is loaded, parsed_data remains as initial_result.copy()
-        # and debug_image_cv2 remains as the initially converted image.
-        pass
+        # Fallback for generic OCR if no specific extractor is found
+        # In this case, you'd perform a basic OCR here with generic preprocessing
+        # or just on the raw image if you prefer to have a "generic_extractor.py"
+        # For simplicity, let's assume a basic generic process if no extractor
+        img_np_fallback = np.array(image_pil)
+        img_cv_gray_fallback = cv2.cvtColor(img_np_fallback, cv2.COLOR_RGB2GRAY)
+        # Use simple adaptive thresholding for generic fallback
+        img_thresh_fallback = cv2.adaptiveThreshold(img_cv_gray_fallback, 255,
+                                                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                                cv2.THRESH_BINARY, 11, 2)
+        processed_image_for_ocr_fallback = Image.fromarray(img_thresh_fallback)
+
+        tesseract_config = r'--oem 1 --psm 3' # Generic default PSM
+        data_fallback = pytesseract.image_to_data(processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
+        raw_ocr_text_fallback = pytesseract.image_to_string(processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, config=tesseract_config)
+        cleaned_extracted_text_for_matching = raw_ocr_text_fallback.replace(' ', '').lower()
+        # parsed_data remains initial_result.copy()
+        # debug_image_cv2 remains as the initial conversion
+        sys.stderr.write("Falling back to generic OCR with basic processing.\n")
+
 
     # Final cleanup: Change any remaining "N/A" to None for database compatibility
-    for field in parsed_data:  # Operating on parsed_data
+    for field in parsed_data:
         if parsed_data[field] == "N/A":
             parsed_data[field] = None
 
-    # Return the globally cleaned text (no spaces, lowercase)
     return parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching
-
 
 # --- Main script execution ---
 if __name__ == '__main__':
@@ -140,7 +136,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     receipt_type = sys.argv[1]
-    original_filename = sys.argv[2]
+    original_filename = sys.argv[2] # Now passed to dynamic_parse_ocr
 
     try:
         # Read image bytes from stdin (as sent by Node.js multer)
@@ -148,8 +144,9 @@ if __name__ == '__main__':
         original_image_pil = Image.open(io.BytesIO(image_bytes))
 
         # Perform dynamic OCR parsing and get the parsed data, debug image, AND the globally cleaned extracted text
+        # Pass original_filename here
         parsed_data, debug_image_cv2, extracted_text = dynamic_parse_ocr(
-            original_image_pil, receipt_type)
+            original_image_pil, receipt_type, original_filename)
 
         # Save the debug image with bounding boxes
         debug_image_path = os.path.join(
@@ -159,8 +156,8 @@ if __name__ == '__main__':
         # Prepare the final result dictionary to be sent back to Node.js as JSON
         result = {
             'message': 'Image processed dynamically!',
-            'extracted_text': extracted_text,    # This is now lowercase and has no spaces
-            'parsed_data': parsed_data,          # Structured parsed data
+            'extracted_text': extracted_text,
+            'parsed_data': parsed_data,
             'debug_image_url': f'/processed_uploads/debug_dynamic_{receipt_type}_{original_filename}',
             'status': 'complete'
         }

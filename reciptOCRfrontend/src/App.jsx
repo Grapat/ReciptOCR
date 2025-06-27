@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useState } from 'react';
 import './app.css';
 
@@ -31,43 +32,22 @@ function App() {
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
-    setImagePreviewUrl(null);
-    setSelectedFile(null);
-    setStatusMessage('');
-    setIsError(false);
-    setIsProcessing(false);
-    setExtractedText('');
-    setParsedData(null);
-    setEditableFields({
-      merchant_name: '',
-      date: '',
-      total_amount: '',
-      gas_provider: '',
-      gas_name: '',
-      gas_address: '',
-      gas_tax_id: '',
-      receipt_no: '',
-      liters: '',
-      plate_no: '',
-      milestone: '',
-      VAT: '',
-      gas_type: '',
-      egat_address_th: '',
-      egat_address_eng: '',
-      egat_tax_id: ''
-    });
+    clearAllData(); // Always clear state when a new file selection attempt is made
 
     if (file) {
       if (!file.type.startsWith('image/')) {
         setStatusMessage('Please select an image file (PNG, JPG, JPEG, GIF, WEBP).');
         setIsError(true);
+        // Do not proceed with setting file or preview if invalid
         return;
       }
+      // If file is valid, proceed
       const reader = new FileReader();
       reader.onloadend = () => setImagePreviewUrl(reader.result);
       reader.readAsDataURL(file);
       setSelectedFile(file);
     }
+    // If no file (user cancelled), clearAllData() already took care of it
   };
 
   const handleFieldChange = (e) => {
@@ -139,8 +119,8 @@ function App() {
     formData.append('receipt_type', receiptType);
 
     try {
-      // --- UPDATED API URL HERE (assuming Node.js backend now) ---
-      // Make sure your backend (Node.js) is running on port 5000 or adjust accordingly.
+      // This URL is now consistent with your error message
+      console.log(formData)
       const response = await fetch('http://localhost:5000/api/receipts/process-image', {
         method: 'POST',
         body: formData,
@@ -222,6 +202,17 @@ function App() {
     setStatusMessage('Saving changes...');
     setIsError(false);
 
+    // --- CRITICAL CHANGE: Map frontend field names to backend/DB field names ---
+    const dataToSend = {
+      ...editableFields,
+      amount: editableFields.total_amount, // Map total_amount from frontend to 'amount' for DB
+      transactionDate: editableFields.date, // Map date from frontend to 'transactionDate' for DB
+    };
+    // Remove the old keys if they are not needed in the backend
+    delete dataToSend.total_amount;
+    delete dataToSend.date;
+    // --- END CRITICAL CHANGE ---
+
     try {
       const response = await fetch(`http://localhost:5000/api/receipts/${parsedData.db_receipt_id}`, {
         method: 'PUT',
@@ -236,6 +227,9 @@ function App() {
         setStatusMessage(result.message);
         setIsError(false);
         console.log("Updated Receipt:", result.receipt);
+        // --- Added: Clear all data after successful save ---
+        clearAllData();
+        // --- End Added ---
       } else {
         const errorData = await response.json();
         setStatusMessage(`Error saving changes: ${errorData.error || 'Unknown error.'}`);
@@ -246,6 +240,34 @@ function App() {
       setStatusMessage('Failed to connect to the backend to save changes.');
       setIsError(true);
     }
+  };
+
+  const clearAllData = () => {
+    setImagePreviewUrl(null);
+    setSelectedFile(null);
+    setStatusMessage('');
+    setIsError(false);
+    setIsProcessing(false);
+    setExtractedText('');
+    setParsedData(null);
+    setEditableFields({
+      merchant_name: '',
+      date: '',
+      total_amount: '',
+      gas_provider: '',
+      gas_name: '',
+      gas_address: '',
+      gas_tax_id: '',
+      receipt_no: '',
+      liters: '',
+      plate_no: '',
+      milestone: '',
+      VAT: '',
+      gas_type: '',
+      egat_address_th: '',
+      egat_address_eng: '',
+      egat_tax_id: ''
+    });
   };
 
   return (
@@ -387,17 +409,6 @@ function App() {
                   name="gas_provider"
                   className="form-input"
                   value={editableFields.gas_provider || ''}
-                  onChange={handleFieldChange}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="gas_name" className="form-label">Gas Station Name:</label>
-                <input
-                  type="text"
-                  id="gas_name"
-                  name="gas_name"
-                  className="form-input"
-                  value={editableFields.gas_name || ''}
                   onChange={handleFieldChange}
                 />
               </div>

@@ -5,28 +5,39 @@ import numpy as np
 import logging
 import os
 from PIL import Image  # Make sure PIL is imported for image_pil handling
+import pytesseract  # Import pytesseract
 
-# --- Logging Configuration (from your file) ---
-LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs_pptK')
+# This will create a 'logs_a5' folder right next to A5_extractor.py
+LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs_a5')
 os.makedirs(LOG_FOLDER, exist_ok=True)
-LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'pptK_extractor.log')
+LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'a5_extractor.log')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-file_handler = logging.FileHandler(LOG_FILE_PATH, encoding='utf-8')
+file_handler = logging.FileHandler(
+    LOG_FILE_PATH, encoding='utf-8')  # Add encoding='utf-8'
 file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 
 if not logger.handlers:
     logger.addHandler(file_handler)
 # --- Logging Configuration End ---
 
-# Helper functions (from your file, unchanged)
+# --- Global settings for OCR (can be passed from ocr_processor if preferred) ---
+OCR_LANGUAGES = 'eng+tha'
+# Assuming PROCESSED_UPLOAD_FOLDER is relative to the backend's root
+# This will be used to save debug preprocessed images
+PROCESSED_UPLOAD_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), 'processed_uploads')
+os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
+# --- End Global settings ---
 
 
+# Helper functions for common extraction logic (unchanged from your file)
 def _extract_amount(text_to_search):
     amount_match = re.search(
         r'(\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search)
@@ -56,110 +67,25 @@ def _extract_date(text_to_search):
     logger.debug(f"Attempting to extract date from: '{text_to_search}'")
     text_to_search = re.sub(r'\s+', ' ', text_to_search).strip()
 
-    # Look for these keywords before extracting dates
-    date_keywords = ["วันที่", "date", "วันที่ขาย",
-                     "วันที่พิมพ์", "วัน", "ออกใบ", "มือจ่าย", "date:"]
-
-    keyword_found_text = text_to_search
-    keyword_found = False
-    for keyword in date_keywords:
-        if keyword.lower() in text_to_search.lower():
-            idx = text_to_search.lower().find(keyword.lower())
-            keyword_found_text = text_to_search[idx:]
-            keyword_found = True
-            break
-
-    if not keyword_found:
-        logger.debug(f"No date-related keyword found in '{text_to_search}'.")
-        return None
-
     date_patterns = [
-        # YYYY/MM/DD and YYYY-MM-DD
-        (r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})', ['%Y/%m/%d', '%Y-%m-%d']),
-        # DD/MM/YYYY and DD-MM-YYYY
-        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})', ['%d/%m/%Y', '%d-%m-%Y']),
-        # MM/DD/YYYY and MM-DD-YYYY
-        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{4})', ['%m/%d/%Y', '%m-%d/%Y']),
-        # DD/MM/YY and DD-MM-YY (2-digit year)
-        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{2})', ['%d/%m/%y', '%d-%m-%y']),
-        # MM/DD/YY and MM-DD-YY (2-digit year)
-        (r'(\d{1,2}[-/]\d{1,2}[-/]\d{2})', ['%m/%d/%y', '%m-%d/%y']),
+        (r'(\d{1,2}/\d{1,2}/\d{4})', ['%d/%m/%Y'])
     ]
 
-    current_gregorian_year = datetime.now().year
-    current_buddhist_year = current_gregorian_year + 543
-
     for pattern, formats in date_patterns:
-        for match in re.finditer(pattern, keyword_found_text):
-            date_str = match.group(1).strip()
-            logger.debug(
-                f"Found potential date string: '{date_str}' matching pattern: '{pattern}'")
+        match = re.search(pattern, text_to_search)
+        if not match:
+            continue
 
-            parsed_date_obj = None
+        date_str = match.group(1).strip()
 
-            # --- Internal Year Conversion Logic (formerly _convert_input_year_to_gregorian_for_parsing) ---
-            def _get_gregorian_year_for_parsing(year_int_from_str):
-                # If it's a 4-digit year and likely a Buddhist year (e.g., 25xx)
-                if len(str(year_int_from_str)) == 4 and year_int_from_str > 2400 and year_int_from_str <= current_buddhist_year + 10:
-                    return year_int_from_str - 543
+        for fmt in formats:
+            try:
+                parsed = datetime.strptime(date_str, fmt)
+                return parsed.strftime('%d-%m-%Y')
+            except ValueError:
+                continue
 
-                # For 2-digit years, `datetime.strptime` with `%y` handles the century pivot
-                # (00-68 -> 20xx, 69-99 -> 19xx). We return it as is for `strptime` to interpret.
-                return year_int_from_str
-            # --- End Internal Year Conversion Logic ---
-
-            # Attempt 1: Try parsing directly (for Gregorian years or %y interpretation)
-            for fmt in formats:
-                try:
-                    parsed_date_obj = datetime.strptime(date_str, fmt)
-                    logger.debug(
-                        f"Direct parse successful: '{date_str}' with format '{fmt}' to '{parsed_date_obj}'")
-                    break
-                except ValueError:
-                    pass
-
-            # If direct parsing failed, attempt to adjust year (assuming Buddhist input year) and retry
-            if parsed_date_obj is None:
-                year_part_match = re.search(
-                    r'(\d{2,4})$', date_str)  # Get last 2 or 4 digits
-                if year_part_match:
-                    original_year_str = year_part_match.group(1)
-                    try:
-                        original_year_int = int(original_year_str)
-                        # Use the internal helper to get a Gregorian year for parsing
-                        gregorian_year_for_parsing = _get_gregorian_year_for_parsing(
-                            original_year_int)
-
-                        if gregorian_year_for_parsing is not None and gregorian_year_for_parsing != original_year_int:
-                            # Reconstruct date string with Gregorian year
-                            temp_date_str = re.sub(r'\d{2,4}$', str(
-                                gregorian_year_for_parsing), date_str)
-                            logger.debug(
-                                f"Adjusted date string for parsing: '{temp_date_str}'")
-
-                            # Try parsing with the adjusted string
-                            for fmt in formats:
-                                # Adjust format string if it was expecting %y but now has %Y
-                                adjusted_fmt = fmt.replace('%y', '%Y')
-                                try:
-                                    parsed_date_obj = datetime.strptime(
-                                        temp_date_str, adjusted_fmt)
-                                    logger.debug(
-                                        f"Adjusted parse successful: '{temp_date_str}' with format '{adjusted_fmt}' to '{parsed_date_obj}'")
-                                    break
-                                except ValueError:
-                                    pass
-                    except ValueError:
-                        logger.debug(
-                            f"Year part '{original_year_str}' not an integer.")
-
-            if parsed_date_obj:
-                # Convert the Gregorian year to Buddhist year for the final output string
-                buddhist_year = parsed_date_obj.year + 543
-                return parsed_date_obj.strftime(f'%d-%m-{buddhist_year}')
-
-    logger.debug(
-        f"No valid date found in '{keyword_found_text}' after processing all patterns.")
+    logger.debug(f"No valid date found in '{text_to_search}' after keyword.")
     return None
 
 
@@ -191,7 +117,7 @@ def _extract_liters(text_to_search):
 
 def _extract_vat(text_to_search):
     vat_match = re.search(
-        r'(?:VAT|ภาษีมูลค่าเพิ่ม)[\s:]*(\d{1,}(?:[.,]\d{2})?)', text_to_search, re.IGNORECASE)
+        r'(?:total|vat.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search, re.IGNORECASE)
     if vat_match:
         value = vat_match.group(1).replace(',', '')
         try:
@@ -245,148 +171,81 @@ def _normalize_gas_type(text):
         return "HI DIESEL"
     return None
 
-# --- Preprocessing Function (removed explicit cropping) ---
 
-
-def preprocess_image_for_bangchak_kbank(image_pil, original_filename=None):
-    img_np = np.array(image_pil)
-
-    processed_image_for_ocr = Image.fromarray(img_np)
-
-    # --- Log the preprocessed image ---
-    if original_filename:
-        base_name = os.path.splitext(os.path.basename(original_filename))[0]
-        # Adding timestamp and "preprocessed" for unique and clear filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # Using PNG for lossless saving
-        processed_filename = f"{base_name}_preprocessed_{timestamp}.png"
-        processed_filepath = os.path.join(LOG_FOLDER, processed_filename)
-        try:
-            processed_image_for_ocr.save(processed_filepath)
-            logger.info(f"Saved preprocessed image: {processed_filepath}")
-        except Exception as e:
-            logger.error(
-                f"Failed to save preprocessed image {processed_filepath}: {e}")
-
-    return processed_image_for_ocr
-
-# --- New: OCR Result Filtering Function ---
-
-
-def _filter_ocr_results(ocr_data, image_width, image_height,
-                        left_margin_ratio=0.10, right_margin_ratio=0.90,
-                        top_margin_ratio=0.03, bottom_margin_ratio=0.97):
-    """
-    Filters OCR results based on bounding box location to remove text in margins.
-
-    Args:
-        ocr_data (dict): The raw OCR output dictionary (e.g., from pytesseract.image_to_data).
-                         Expected keys: 'text', 'left', 'top', 'width', 'height', 'line_num', 'block_num', etc.
-        image_width (int): Width of the original image.
-        image_height (int): Height of the original image.
-        left_margin_ratio (float): Ratio of image width from left to consider as margin.
-        right_margin_ratio (float): Ratio of image width from left after which to consider as margin.
-        top_margin_ratio (float): Ratio of image height from top to consider as margin.
-        bottom_margin_ratio (float): Ratio of image height from top after which to consider as margin.
-
-    Returns:
-        tuple: (filtered_data, filtered_full_text)
-               filtered_data (dict): OCR data with marginal text removed.
-               filtered_full_text (str): Reconstructed full text from filtered data.
-    """
-    filtered_texts = []
-    filtered_data = {key: [] for key in ocr_data.keys()}
-
-    # Calculate pixel thresholds
-    left_threshold = image_width * left_margin_ratio
-    right_threshold = image_width * right_margin_ratio
-    top_threshold = image_height * top_margin_ratio
-    bottom_threshold = image_height * bottom_margin_ratio
-
-    # Assuming 'line_num' is available to reconstruct lines
-    current_line_num = -1
-    current_line_words = []
-
-    for i in range(len(ocr_data['text'])):
-        word_text = ocr_data['text'][i].strip()
-        word_left = ocr_data['left'][i]
-        word_top = ocr_data['top'][i]
-        word_width = ocr_data['width'][i]
-        word_height = ocr_data['height'][i]
-        word_conf = ocr_data['conf'][i]  # Confidence score
-        word_line_num = ocr_data['line_num'][i]
-
-        # Skip empty words or words with very low confidence (e.g., noise)
-        # Adjust confidence threshold if needed
-        if not word_text or int(word_conf) < 50:
-            continue
-
-        # Check if the word's bounding box is within the central "safe" area
-        is_in_safe_horizontal_zone = (word_left > left_threshold and
-                                      (word_left + word_width) < right_threshold)
-        is_in_safe_vertical_zone = (word_top > top_threshold and
-                                    (word_top + word_height) < bottom_threshold)
-
-        if is_in_safe_horizontal_zone and is_in_safe_vertical_zone:
-            # Add to filtered data
-            for key in filtered_data.keys():
-                filtered_data[key].append(ocr_data[key][i])
-
-            # Reconstruct full text, preserving line breaks
-            if word_line_num != current_line_num and current_line_words:
-                filtered_texts.append(" ".join(current_line_words))
-                current_line_words = [word_text]
-                current_line_num = word_line_num
-            else:
-                current_line_words.append(word_text)
-                current_line_num = word_line_num
-        else:
-            logger.debug(
-                f"Filtered out marginal text: '{word_text}' at ({word_left}, {word_top})")
-
-    # Add any remaining words in the last line
-    if current_line_words:
-        filtered_texts.append(" ".join(current_line_words))
-
-    filtered_full_text = "\n".join(filtered_texts)
-    return filtered_data, filtered_full_text
-
-
-# --- Original extract_data function (modified to use filtered OCR data) ---
-def extract_data(data, image_cv, full_ocr_text, initial_result):
-    logger.info("Starting combined keyword and regex extraction.")
-
-    # --- NEW: Filter OCR data based on image dimensions to remove side info ---
-    # Get original image dimensions from image_cv
-    # Assuming image_cv is grayscale/binary, so no third dim
-    image_height, image_width = image_cv.shape[:2]
-
-    # You might need to adjust these ratios based on how much "side info" is present
-    # and where your main text usually lies.
-    # For 'B-Kb.jpg', the side text is pretty far out, so 10-15% margins are a good start.
-    filtered_data, filtered_full_ocr_text = _filter_ocr_results(
-        data, image_width, image_height,
-        left_margin_ratio=0.10,  # Adjust if main text starts further in
-        right_margin_ratio=0.90,  # Adjust if main text ends earlier
-        top_margin_ratio=0.03,   # Small top margin, receipts often start high
-        bottom_margin_ratio=0.97  # Small bottom margin
-    )
-    logger.debug(
-        f"OCR results filtered. Original text length: {len(full_ocr_text)}, Filtered text length: {len(filtered_full_ocr_text)}")
-    # logger.debug(f"Filtered Full OCR Text:\n{filtered_full_ocr_text}") # Uncomment for debugging
-
+# Modified extract_data function to include preprocessing and OCR
+def extract_data(image_pil, original_filename, initial_result):  # New signature
+    logger.info("Starting combined keyword and regex extraction for A5 type.")
     # Initialize result dictionary with values from initial_result, converting "N/A" to None
     result = {field: (initial_result[field] if initial_result[field]
                       != "N/A" else None) for field in initial_result.keys()}
 
+    # Ensure receipt_type_used is set
+    result["receipt_type_used"] = "A5"
+
+    # --- Preprocessing specific to A5 receipt type starts here ---
+    img_np = np.array(image_pil)
+    # Convert to BGR for OpenCV drawing if the original is RGB
+    debug_image_cv2 = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+
+    # Denoising: Median Blur is good for thermal receipts
+    # Kernel size 3 is a good starting point
+    img_denoised = cv2.medianBlur(img_cv_gray, 1)
+
+    # Adaptive Thresholding: Crucial for varied lighting. Experiment with blockSize and C
+    # For A5.jpg (clear image), blockSize 21 and C=5 or C=2 should work well
+    img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
+                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY, 21, 10)  # <--- TWEAK THESE VALUES FOR A5 TYPE
+
+    # Optional: Morphological operations (uncomment and adjust as needed)
+    # kernel = np.ones((2,2), np.uint8) # Define kernel here if uncommenting
+    # img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, kernel, iterations=1) # Remove small noise
+    # img_thresh = cv2.dilate(img_thresh, kernel, iterations=1) # Thicken thin text slightly
+
+    # Convert the processed OpenCV image (numpy array) back to PIL for pytesseract
+    processed_image_for_ocr = Image.fromarray(img_thresh)
+
+    # --- Optional: Save preprocessed debug image from within the extractor ---
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S")  # Include time for uniqueness
+    # Use original_filename for more context in debug file
+    base_original_filename = os.path.basename(original_filename)
+    preprocessed_debug_image_path = os.path.join(
+        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_A5_{timestamp}_{base_original_filename}')
+    processed_image_for_ocr.save(preprocessed_debug_image_path)
+    logger.debug(
+        f"Preprocessed debug image saved to: {preprocessed_debug_image_path}")
+    # --- Preprocessing specific to A5 receipt type ends here ---
+
+    # --- Tesseract OCR specific to A5 receipt type starts here ---
+    # Define Tesseract configuration string
+    # For A5.jpg, `--psm 6` (single uniform block) or `--psm 4` (single column) are good starting points.
+    # Keep `--oem 1` for the LSTM engine.
+    tesseract_config = r'--oem 1 --psm 3'  # <--- TWEAK THIS FOR A5 TYPE
+
+    # Perform OCR to get detailed word-by-word data
+    data = pytesseract.image_to_data(
+        processed_image_for_ocr, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
+
+    # Perform OCR to get the full raw text
+    raw_ocr_text = pytesseract.image_to_string(
+        processed_image_for_ocr, lang=OCR_LANGUAGES, config=tesseract_config)
+
+    # Clean the extracted text for matching (lowercase, no spaces)
+    cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
+    # --- Tesseract OCR specific to A5 receipt type ends here ---
+
     # Define all global regex patterns here. These are used as a fallback if keyword-based fails.
     global_regex_patterns = {
-        "date": r"(?:date.*?)(?P<date>\d{2}/\d{2}/\d{2})",
+        # Adjusted date regex for better capture after keywords
+        "date": r"(?:วันที่พิมพ์|มือจ่าย)\s*(\d{1,2}/\d{1,2}/\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
         "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
-        "merchant_name": r"(บริษัท.*?กัด)",
-        "total_amount": r"(?:thb.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))",
+        "merchant_name": r"((บริษัท.*?กัด)|(ห้างหุ้น.*?กัด))",
+        "total_amount": r"(?:fleet.*?)(?P<money_amount>\d{1,3}(?:\d{3})*\.\d{2}(?!\d))",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
         "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
         "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
@@ -395,10 +254,10 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
     }
 
-    # Define keyword mappings for local, keyword-based extraction
+    # Define keyword mappings for local, keyword-based extraction (unchanged from your file)
     keyword_mappings = {
         "total_amount": ["เป็นเงิน"],
-        "date": ["วันที่พิมพ์", "วันที่", "date", "date:."],
+        "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
         "receipt_no": ["เลขที่", "เลขใบกำกับภาษี"],
         "liters": ["ลิตร", "liters", "litre", "l"],
         "plate_no": ["ทะเบียนรถ", "เบียนรถ"],
@@ -414,7 +273,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี"],
     }
 
-    # Iterate through each field to extract data
+    # Iterate through each field to extract data (unchanged from your file)
     fields_to_extract_order = [
         "date", "total_amount", "receipt_no", "liters", "plate_no", "milestone",
         "VAT", "gas_type", "gas_address", "merchant_name", "egat_address_th",
@@ -429,10 +288,10 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
         extracted_value = None  # Reset for each field
 
         # --- Attempt 1: Keyword-based extraction (local context) ---
-        # Use filtered_data for keyword-based extraction
+        # Iterate through words in the OCR data to find keywords
         if field in keyword_mappings:  # Only attempt if keywords are defined for the field
-            for i in range(len(filtered_data['text'])):
-                word = filtered_data['text'][i].strip()
+            for i in range(len(data['text'])):
+                word = data['text'][i].strip()
                 if not word:
                     continue
 
@@ -441,7 +300,7 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                         f"Keyword '{word}' matched for field '{field}'. Attempting local extraction.")
                     # Define context for local extraction (current word and next 4 words)
                     text_to_search = " ".join(
-                        filtered_data['text'][i:min(i+5, len(filtered_data['text']))])
+                        data['text'][i:min(i+5, len(data['text']))])
 
                     # Apply field-specific extraction logic using helper functions
                     if field == "date":
@@ -468,8 +327,8 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                         if any(kw.lower() == word.lower() for kw in ['บริษัท', 'จำกัด']):
                             company_name_words = []
                             # Look a few words ahead
-                            for k in range(i, min(i+5, len(filtered_data['text']))):
-                                w = filtered_data['text'][k].strip()
+                            for k in range(i, min(i+5, len(data['text']))):
+                                w = data['text'][k].strip()
                                 if w:
                                     company_name_words.append(w)
                                     if 'จำกัด' in w.lower():  # Stop if "จำกัด" is found
@@ -481,15 +340,15 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                     elif field in ['egat_address_th', 'egat_address_eng']:
                         # Logic to extract address lines after EGAT keywords
                         collected_address_words = []
-                        current_line_num = filtered_data['line_num'][i]
-                        for k in range(i + 1, len(filtered_data['text'])):
+                        current_line_num = data['line_num'][i]
+                        for k in range(i + 1, len(data['text'])):
                             # Collect words on the same or next line
-                            if filtered_data['text'][k].strip() and filtered_data['line_num'][k] == current_line_num:
+                            if data['text'][k].strip() and data['line_num'][k] == current_line_num:
                                 collected_address_words.append(
-                                    filtered_data['text'][k].strip())
-                            elif filtered_data['text'][k].strip() and filtered_data['line_num'][k] == current_line_num + 1:
+                                    data['text'][k].strip())
+                            elif data['text'][k].strip() and data['line_num'][k] == current_line_num + 1:
                                 collected_address_words.append(
-                                    filtered_data['text'][k].strip())
+                                    data['text'][k].strip())
                                 current_line_num += 1  # Move to the next line number if a word from it is collected
                             else:
                                 break  # Stop if a gap or completely new line
@@ -515,25 +374,21 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
                         logger.debug(
                             f"Keyword-based extraction successful for '{field}': '{extracted_value}'")
                         # Visual debugging: Draw bounding box around the keyword
-                        # Note: These bounding boxes are for the original (pre-filtered) image_cv
-                        # If you want to draw on a filtered image, you'd need a different visual debugging strategy.
-                        # For now, it draws on the full image_cv.
-                        x, y, w, h = filtered_data['left'][i], filtered_data['top'][
-                            i], filtered_data['width'][i], filtered_data['height'][i]
-                        if 0 <= x < x + w <= image_cv.shape[1] and 0 <= y < y + h <= image_cv.shape[0]:
-                            cv2.rectangle(image_cv, (x, y),
+                        x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
+                        if 0 <= x < x + w <= debug_image_cv2.shape[1] and 0 <= y < y + h <= debug_image_cv2.shape[0]:
+                            cv2.rectangle(debug_image_cv2, (x, y),
                                           (x + w, y + h), (0, 255, 0), 2)
-                            cv2.putText(image_cv, field, (x, y - 10),
+                            cv2.putText(debug_image_cv2, field, (x, y - 10),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                         break  # Break from word loop, move to next field
 
         # --- Attempt 2: Global Regex if keyword-based failed OR field is better handled by global regex ---
         # This block runs only if the field is still None OR it's a field primarily extracted by global regex.
-        # Use filtered_full_ocr_text for global regex.
         if result[field] is None and field in global_regex_patterns:
             logger.debug(f"Attempting global regex for '{field}'.")
             match = re.search(
-                global_regex_patterns[field], filtered_full_ocr_text, re.IGNORECASE | re.DOTALL)
+                # Use cleaned_extracted_text_for_matching
+                global_regex_patterns[field], cleaned_extracted_text_for_matching, re.IGNORECASE | re.DOTALL)
             if match:
                 value_from_regex = None
 
@@ -601,4 +456,6 @@ def extract_data(data, image_cv, full_ocr_text, initial_result):
             result[field] = "N/A"
         logger.info(f"END {field}")
     logger.info("Combined extraction completed.")
-    return result, image_cv
+
+    # Return the updated parsed data, debug image, and cleaned OCR text
+    return result, debug_image_cv2, cleaned_extracted_text_for_matching
