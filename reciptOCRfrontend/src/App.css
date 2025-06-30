@@ -1,179 +1,295 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+/* app.css */
 
-body {
+/* Global reset for scrolling behavior */
+html,
+body,
+#root {
+  height: 100%; /* Ensures html, body, and root div take full height */
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-  font-family: "Inter", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: #f3f4f6; /* Light gray background */
-  color: #333;
+  overflow-x: hidden; /* Prevent horizontal scrolling always */
+  overflow-y: auto; /* Allow vertical scrolling by default for the entire page */
+  font-family: Arial, sans-serif;
+  background-color: #f0f2f5;
 }
 
 .app-container {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  width: 100%;
+  flex-direction: column; /* Stacks header above the main content */
+  align-items: center; /* Centers the content horizontally */
+  height: 100vh; /* Make app-container take full viewport height on large screens */
   padding: 20px;
+  box-sizing: border-box; /* Include padding in height calculation */
+  overflow-y: hidden; /* Hide vertical scrollbar on app-container on large screens */
 }
 
-.card-container {
-  max-width: 600px;
-  width: 100%;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  padding: 32px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
+/* Header styles (assuming they are in Header.jsx or directly in App.jsx as before) */
 .header-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #4338ca;
-  margin-bottom: 1.5rem;
-  letter-spacing: 0.05em;
+  text-align: center;
+  color: #333;
+  margin-bottom: 10px;
 }
 
 .header-description {
+  text-align: center;
   color: #555;
-  margin-bottom: 2rem;
-  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* Main Content Layout - The parent of the left and right columns */
+.main-content-layout {
+  display: flex; /* Enables flexbox for horizontal layout */
+  flex-wrap: nowrap; /* Prevent wrapping to force horizontal layout unless explicitly broken */
+  justify-content: center; /* Centers items horizontally */
+  gap: 20px; /* Space between the left and right columns */
+  width: 100%;
+  max-width: 1220px; /* (400px for left + 800px for right + 20px gap) */
+  margin-top: 20px; /* Space below the header */
+  flex-grow: 1; /* Allows this container to take available vertical space */
+  overflow: hidden; /* Prevents horizontal scroll on large screens */
+}
+
+/* Common card container styles */
+.card-container {
+  background-color: #ffffff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-sizing: border-box;
+}
+
+/* Left Column: Upload Section */
+.upload-section-container {
+  /* Fixed width for the upload section */
+  flex: 0 0 400px; /* No grow, no shrink, fixed basis of 400px */
+  min-width: 400px;
+  max-width: 400px;
+  /* Height matches the combined height of the right column */
+  max-height: 100vh; /* Adjust based on header/overall padding */
+  overflow-y: auto; /* Enable vertical scrolling within this section */
+}
+
+/* Right Column: Container for Form and Raw Output sections */
+.right-content-column {
+  /* NEW wrapper for the two right sections */
+  display: flex;
+  flex-direction: column; /* Stacks its children (form and raw output) vertically */
+  /* Fixed width for the entire right column block */
+  flex: 0 0 800px; /* No grow, no shrink, fixed basis of 800px */
+  min-width: 800px;
+  max-width: 800px;
+  gap: 20px; /* Space between form and raw output sections */
+  box-sizing: border-box;
+  /* Height matches the left column's height */
+  max-height: 100vh; /* Adjust based on header/overall padding */
+  overflow: hidden; /* Hide scrollbar for this container itself; its children will scroll */
+}
+
+/* Top Right Section: Form Section */
+.form-section-container {
+  flex-grow: 1; /* Allows it to take available vertical space */
+  /* Calculate fixed height for each section based on parent's height and gap */
+  max-height: 100vh;
+  overflow-y: auto; /* Enable vertical scrolling within this section */
+}
+
+/* Bottom Right Section: Raw Output Section */
+.raw-output-section-container {
+  flex-grow: 1; /* Allows it to take available vertical space */
+  /* Calculate fixed height for each section based on parent's height and gap */
+  max-height: calc(
+    ((100vh - 120px) - 20px) / 2
+  ); /* (Parent's max-height - gap) / 2 */
+  overflow-y: auto; /* Enable vertical scrolling within this section */
+}
+
+/* Parsed Data Container - Make it 2 columns */
+.parsed-data-container {
+  flex-grow: 1; /* Allows it to take available height */
+  display: grid; /* Changed to grid for 2-column layout */
+  grid-template-columns: repeat(2, 1fr); /* Two equal columns */
+  gap: 15px; /* Gap between grid items (form groups) */
+  overflow-y: auto; /* Add internal scroll for form fields if needed */
+}
+
+/* Ensure the title within parsed data container doesn't get messed up by grid */
+.parsed-data-title {
+  grid-column: 1 / -1; /* Make the title span all columns */
+  margin-bottom: 0; /* Adjust margin if needed */
+}
+
+/* Ensure form groups within parsed data align properly */
+.form-group {
+  margin-bottom: 0; /* Remove default margin-bottom, handled by grid gap */
+  /* No width needed here, grid handles sizing */
+}
+
+.extracted-text-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column; /* Stack title and content vertically */
+}
+
+.extracted-text-content {
+  background-color: #f0f0f0;
+  padding: 15px;
+  border-radius: 5px;
+  white-space: pre-wrap;
+  font-family: "monospace", monospace;
+  font-size: 0.9rem;
+  color: #333;
+  flex-grow: 1; /* Allows the content to expand and fill available height */
+  overflow-y: auto; /* Ensure this specific text area scrolls if its content is too long */
+}
+
+/* Push buttons to the bottom */
+.process-button,
+.save-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background-color 0.2s;
+  margin-top: auto; /* Push to the bottom of the flex container */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Input and button styles */
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 1rem;
 }
 
 .file-input-wrapper {
-  position: relative;
-  overflow: hidden;
-  display: inline-block;
-  margin-bottom: 1.5rem;
-  width: 100%;
-  max-width: 320px;
+  margin-bottom: 20px;
 }
 
+/* Hidden file input styles */
 .file-input-hidden {
   position: absolute;
-  left: 0;
-  top: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-  z-index: 10;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .file-input-button {
-  background-color: #4f46e5;
-  color: white;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
   border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+  width: 100%;
 }
 
 .file-input-button:hover {
-  background-color: #4338ca;
+  background-color: #0056b3;
 }
 
 .file-input-icon {
-  width: 24px;
-  height: 24px;
-}
-
-.status-message {
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.status-message-error {
-  color: #dc2626;
-}
-
-.status-message-success {
-  color: #16a34a;
+  margin-right: 8px;
 }
 
 .image-preview-container {
-  width: 100%;
-  height: 256px;
-  border: 2px dashed #d1d5db;
-  border-radius: 0.5rem;
+  min-height: 200px;
+  max-height: 300px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background-color: #f9fafb;
-  margin-bottom: 1rem;
+  margin-bottom: 20px;
+  background-color: #f9f9f9;
 }
 
 .image-preview {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 0.375rem;
 }
 
 .image-preview-placeholder {
-  color: #6b7280;
-  font-size: 1.125rem;
-  padding: 20px;
-  text-align: center;
-}
-
-.process-button {
-  background-color: #22c55e;
-  color: white;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  width: auto;
-  margin-top: 1rem;
+  color: #999;
+  font-style: italic;
 }
 
 .process-button:hover {
-  background-color: #16a34a;
+  background-color: #218838;
 }
 
 .process-button:disabled {
-  background-color: #e5e7eb;
-  color: #4b5563;
+  background-color: #cccccc;
   cursor: not-allowed;
-  opacity: 0.7;
-  box-shadow: none;
+}
+
+.status-message {
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.status-message-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-message-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
 }
 
 .spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-left-color: #4f46e5;
+  border: 4px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  border-top: 4px solid #fff;
+  width: 18px;
+  height: 18px;
+  -webkit-animation: spin 1s linear infinite;
   animation: spin 1s linear infinite;
-  display: inline-block;
-  vertical-align: middle;
   margin-right: 8px;
+}
+
+@-webkit-keyframes spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+  }
 }
 
 @keyframes spin {
@@ -185,106 +301,47 @@ body {
   }
 }
 
-.parsed-data-container {
-  width: 100%;
-  background-color: #e0f2f7;
-  border: 1px solid #b3e0e7;
-  border-radius: 8px;
-  padding: 20px;
-  margin-top: 1.5rem;
-  text-align: left;
-  box-sizing: border-box;
-}
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  /* Allow the entire app container to scroll vertically */
+  .app-container {
+    height: auto; /* Let content dictate height */
+    min-height: 100vh; /* Ensure it still covers full viewport if content is short */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding-bottom: 40px; /* Add some padding at the bottom when scrollable */
+  }
 
-.parsed-data-title {
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #007bb6;
-  font-size: 1.2rem;
-}
+  .main-content-layout {
+    flex-direction: column; /* Stack columns vertically on smaller screens */
+    align-items: center;
+    overflow: visible; /* Let content overflow if needed, handled by app-container scroll */
+    max-width: 100%; /* Allow layout to take full width */
+  }
 
-.form-group {
-  margin-bottom: 1rem;
-}
+  /* When stacked, sections should take up defined width with padding */
+  .upload-section-container,
+  .right-content-column {
+    flex: 0 0 auto; /* Remove fixed flex basis, allow to adapt */
+    min-width: unset; /* Remove fixed min-width */
+    max-width: 600px; /* Max width when stacked */
+    width: 90%; /* Take 90% of parent width */
+    max-height: none; /* Crucial: Remove fixed max-height to allow content to push scroll */
+    overflow-y: auto; /* Keep internal scrolling for these sections */
+  }
 
-.form-label {
-  font-weight: 600;
-  color: #0056b3;
-  display: block;
-  margin-bottom: 0.4rem;
-  font-size: 0.95rem;
-}
+  .form-section-container,
+  .raw-output-section-container {
+    max-height: none; /* Allow sections to grow naturally when stacked */
+    flex-grow: 1; /* Allow them to share space if height is constrained, but typically not needed when stacked */
+  }
 
-.form-input {
-  width: 100%;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
-  box-sizing: border-box;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  background-color: white;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.8rem center;
-  background-size: 1em;
-  padding-right: 2.5rem;
-}
+  /* Parsed data container on smaller screens */
+  .parsed-data-container {
+    grid-template-columns: 1fr; /* Single column on smaller screens */
+    gap: 15px; /* Keep the gap */
+  }
 
-.form-input:focus {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  outline: none;
-}
-
-.save-button {
-  background-color: #007bff;
-  color: white;
-  font-weight: 600;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-top: 1rem;
-}
-
-.save-button:hover {
-  background-color: #0056b3;
-}
-
-.extracted-text-container {
-  width: 100%;
-  max-height: 300px;
-  overflow-y: auto;
-  background-color: #fcfcfc;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 1.5rem;
-  text-align: left;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.extracted-text-title {
-  font-weight: 700;
-  margin-bottom: 0.75rem;
-  color: #1a202c;
-  font-size: 1.1rem;
-}
-
-.extracted-text-content {
-  color: #333;
-}
-
-.receipt-type-select {
-  width: 100%;
-  max-width: 320px;
-  margin-bottom: 2rem;
+  .parsed-data-title {
+    grid-column: 1 / -1; /* Title still spans full width */
+  }
 }
