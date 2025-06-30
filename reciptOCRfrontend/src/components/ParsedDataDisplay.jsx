@@ -23,7 +23,7 @@ function ParsedDataDisplay({ editableFields, handleFieldChange }) {
                     วันที่:
                 </label>
                 <input
-                    type="text"
+                    type="date" // Changed from "text" to "date"
                     id="date"
                     name="date"
                     className="form-input"
@@ -47,17 +47,18 @@ function ParsedDataDisplay({ editableFields, handleFieldChange }) {
 
             {/* New Gas-specific Fields */}
             <div className="form-group">
-                <label htmlFor="gas_provider" className="form-label">
-                    เจ้าของปั้ม:
-                </label>
-                <input
-                    type="text"
+                <label htmlFor="gas_provider" className="form-label">ปั้มของ:</label>
+                <select
                     id="gas_provider"
                     name="gas_provider"
                     className="form-input"
-                    value={editableFields.gas_provider || ''}
+                    value={editableFields.gas_provider || ''} // Use || '' to handle null/undefined
                     onChange={handleFieldChange}
-                />
+                >
+                    <option value="">Select Provider</option> {/* Optional placeholder */}
+                    <option value="PTT">PTT</option>
+                    <option value="Bangchak">Bangchak</option>
+                </select>
             </div>
             <div className="form-group">
                 <label htmlFor="gas_address" className="form-label">

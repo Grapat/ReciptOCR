@@ -54,7 +54,7 @@ function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isErro
         {imagePreviewUrl ? (
           <img src={imagePreviewUrl} alt="Receipt Preview" className="image-preview" />
         ) : (
-          <p className="image-preview-placeholder">รูปของตุณจะปรากฏที่นี่</p>
+          <p className="image-preview-placeholder">รูปของคุณจะปรากฏที่นี่</p>
         )}
       </div>
     </>

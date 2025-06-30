@@ -1,35 +1,28 @@
-// backend_node/routes/receiptRoutes.js
+// routes/receiptRoutes.js
 const express = require("express");
-const multer = require("multer"); // Import multer here as it's used directly in the route
-const receiptController = require("../controllers/receiptController"); // Import the controller
-
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() }); // Same multer config as before
+const receiptController = require("../controllers/receiptController");
 
-// Route for processing new receipt images
-// POST /api/receipts/process-image
+// Import multer
+const multer = require("multer");
+
+// Configure multer storage
+// Use memoryStorage to get the file buffer directly, which is suitable for passing to Python
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Example GET routes (เพื่อให้ครบถ้วนตามที่เราได้คุยกัน)
+router.get("/", receiptController.getAllReceipts);
+router.get("/:id", receiptController.getReceiptById);
+
+// Add multer middleware to the process-image route
+// 'receipt_image' must match the FormData field name used in App.jsx (formData.append('receipt_image', selectedFile))
 router.post(
   "/process-image",
   upload.single("receipt_image"),
   receiptController.processReceipt
 );
 
-// --- CRUD Operations for Receipts ---
-
-// Route to get all receipts
-// GET /api/receipts/
-router.get("/", receiptController.getAllReceipts);
-
-// Route to get a single receipt by ID
-// GET /api/receipts/:id
-router.get("/:id", receiptController.getReceiptById);
-
-// Route to update an existing receipt by ID
-// PUT /api/receipts/:id
 router.put("/:id", receiptController.updateReceipt);
-
-// Route to delete a receipt by ID
-// DELETE /api/receipts/:id
 router.delete("/:id", receiptController.deleteReceipt);
 
 module.exports = router;
