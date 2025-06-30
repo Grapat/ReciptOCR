@@ -17,10 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true, // Allow null if OCR might fail
       },
-      gasName: {
-        type: DataTypes.STRING(50),
-        allowNull: true,
-      },
       gasProvider: {
         type: DataTypes.ENUM("PTT", "Bangchak"), // Specific ENUM values
         allowNull: true,

@@ -292,7 +292,7 @@ function App() {
           {/* Right Column: Vertically stacked Form and Raw Output sections */}
           <div className="right-content-column">
             <div className="form-section-container card-container">
-              {parsedData && ( // Only render if parsedData exists
+              {parsedData ? ( // Only render form fields if parsedData exists
                 <>
                   <ParsedDataDisplay
                     editableFields={editableFields}
@@ -300,11 +300,21 @@ function App() {
                   />
                   <SaveChangesButton handleSaveChanges={handleSaveChanges} />
                 </>
+              ) : ( // Show placeholder for form section if no parsedData
+                <div className="placeholder-box top">
+                  <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
+                </div>
               )}
             </div>
 
             <div className="raw-output-section-container card-container">
-              {extractedText && <ExtractedTextDisplay extractedText={extractedText} />}
+              {extractedText ? ( // Only render raw text if extractedText exists
+                <ExtractedTextDisplay extractedText={extractedText} />
+              ) : ( // Show placeholder for raw text section if no extractedText
+                <div className="placeholder-box bottom">
+                  <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
