@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, useCallback, useRef } from 'react'; // Import useCallback and useRef
+import React, { useState, useCallback, useRef } from 'react';
 import './app.css';
 
 import Header from './components/Header';
@@ -9,6 +9,7 @@ import ProcessButton from './components/ProcessButton';
 import ParsedDataDisplay from './components/ParsedDataDisplay';
 import ExtractedTextDisplay from './components/ExtractedTextDisplay';
 import SaveChangesButton from './components/SaveChangesButton';
+import AdminPage from './assets/pages/AdminPage'; // Import the new AdminPage component
 
 function App() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -17,13 +18,12 @@ function App() {
   const [isError, setIsError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState('');
-  const [parsedData, setParsedData] = useState(null); // This will now contain db_receipt_id after process
+  const [parsedData, setParsedData] = useState(null);
   const [editableFields, setEditableFields] = useState({
     merchant_name: '',
     date: '',
     total_amount: '',
     gas_provider: '',
-    gas_name: '',
     gas_address: '',
     gas_tax_id: '',
     receipt_no: '',
@@ -37,8 +37,11 @@ function App() {
     egat_tax_id: ''
   });
   const [receiptType, setReceiptType] = useState('generic');
+  const [currentPage, setCurrentPage] = useState('scanner'); // New state for navigation: 'scanner' or 'admin'
 
-  // Refactor: clearAllData as a useCallback for stability
+  // Ref for the hidden file input
+  const fileInputRef = useRef(null);
+
   const clearAllData = useCallback(() => {
     setImagePreviewUrl(null);
     setSelectedFile(null);
@@ -46,18 +49,33 @@ function App() {
     setIsError(false);
     setIsProcessing(false);
     setExtractedText('');
-    setParsedData(null);
+    setParsedData(null); // Clear parsed data
     setEditableFields({
-      merchant_name: '', date: '', total_amount: '', gas_provider: '',
-      gas_name: '', gas_address: '', gas_tax_id: '', receipt_no: '',
-      liters: '', plate_no: '', milestone: '', VAT: '', gas_type: '',
-      egat_address_th: '', egat_address_eng: '', egat_tax_id: ''
+      merchant_name: '',
+      date: '',
+      total_amount: '',
+      gas_provider: '',
+      gas_address: '',
+      gas_tax_id: '',
+      receipt_no: '',
+      liters: '',
+      plate_no: '',
+      milestone: '',
+      VAT: '',
+      gas_type: '',
+      egat_address_th: '',
+      egat_address_eng: '',
+      egat_tax_id: ''
     });
+    setReceiptType('generic');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''; // Clear the file input
+    }
   }, []);
 
-  const handleImageChange = (event) => {
+  const handleImageChange = useCallback((event) => {
     const file = event.target.files[0];
-    clearAllData();
+    clearAllData(); // Always clear state when a new file selection attempt is made
 
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -65,259 +83,263 @@ function App() {
         setIsError(true);
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreviewUrl(reader.result);
-      reader.readAsDataURL(file);
       setSelectedFile(file);
+      setImagePreviewUrl(URL.createObjectURL(file));
+      setStatusMessage(`Selected file: ${file.name}`);
+      setIsError(false);
+    } else {
+      setStatusMessage('No file selected.');
+      setIsError(true);
     }
-  };
+  }, [clearAllData]);
 
-  const handleFieldChange = (e) => {
-    const { name, value } = e.target;
-    setEditableFields(prevFields => ({ ...prevFields, [name]: value }));
-  };
+  const handleReceiptTypeChange = useCallback((event) => {
+    setReceiptType(event.target.value);
+  }, []);
 
-  const handleReceiptTypeChange = (e) => {
-    setReceiptType(e.target.value);
-    setStatusMessage('');
-    setIsError(false);
-    setExtractedText('');
-    setParsedData(null);
-    setEditableFields({
-      merchant_name: '', date: '', total_amount: '', gas_provider: '',
-      gas_name: '', gas_address: '', gas_tax_id: '', receipt_no: '',
-      liters: '', plate_no: '', milestone: '', VAT: '', gas_type: '',
-      egat_address_th: '', egat_address_eng: '', egat_tax_id: ''
-    });
-  };
-
-  const handleProcessReceipt = async () => {
+  const handleProcessReceipt = useCallback(async () => {
     if (!selectedFile) {
-      setStatusMessage('Please upload an image first.');
+      setStatusMessage('Please select an image file first.');
       setIsError(true);
       return;
     }
 
     setIsProcessing(true);
-    setStatusMessage('Processing image and performing OCR...');
+    setStatusMessage('Processing image...');
     setIsError(false);
-    setExtractedText('');
-    setParsedData(null);
-    setEditableFields({
-      merchant_name: '', date: '', total_amount: '', gas_provider: '',
-      gas_name: '', gas_address: '', gas_tax_id: '', receipt_no: '',
-      liters: '', plate_no: '', milestone: '', VAT: '', gas_type: '',
-      egat_address_th: '', egat_address_eng: '', egat_tax_id: ''
-    });
 
     const formData = new FormData();
     formData.append('receipt_image', selectedFile);
     formData.append('receipt_type', receiptType);
 
     try {
-      console.log(formData)
-      // This POST request sends the image for processing.
-      // Your backend's process-image endpoint is now expected to
-      // create a new DB record at this point and return its db_receipt_id.
       const response = await fetch('http://localhost:5000/api/receipts/process-image', {
         method: 'POST',
         body: formData,
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setStatusMessage(data.message);
-        setIsError(false);
-        setExtractedText(data.extracted_text || 'No text extracted.');
-        setParsedData(data.parsed_data); // parsed_data should now contain db_receipt_id from backend.
-        setEditableFields(prevFields => ({
-          ...prevFields,
-          // Ensure that parsed data coming from backend (which is snake_case from python)
-          // is mapped to editableFields (also snake_case in state)
-          // before any further processing.
-          merchant_name: data.parsed_data.merchant_name || '',
-          date: data.parsed_data.date || '',
-          total_amount: data.parsed_data.total_amount || '',
-          gas_provider: data.parsed_data.gas_provider || '',
-          gas_name: data.parsed_data.gas_name || '',
-          gas_address: data.parsed_data.gas_address || '',
-          gas_tax_id: data.parsed_data.gas_tax_id || '',
-          receipt_no: data.parsed_data.receipt_no || '',
-          liters: data.parsed_data.liters || '',
-          plate_no: data.parsed_data.plate_no || '',
-          milestone: data.parsed_data.milestone || '',
-          VAT: data.parsed_data.VAT || '',
-          gas_type: data.parsed_data.gas_type || '',
-          egat_address_th: data.parsed_data.egat_address_th || '',
-          egat_address_eng: data.parsed_data.egat_address_eng || '',
-          egat_tax_id: data.parsed_data.egat_tax_id || '',
-        }));
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
-        setStatusMessage(`Error: ${errorData.error || 'Unknown error during processing.'}`);
-        setIsError(true);
-        setExtractedText('');
-        setParsedData(null);
-        setEditableFields({
-          merchant_name: '', date: '', total_amount: '', gas_provider: '',
-          gas_name: '', gas_address: '', gas_tax_id: '', receipt_no: '',
-          liters: '', plate_no: '', milestone: '', VAT: '', gas_type: '',
-          egat_address_th: '', egat_address_eng: '', egat_tax_id: ''
-        });
+        throw new Error(errorData.error || 'Failed to process receipt.');
       }
+
+      const result = await response.json();
+      setExtractedText(result.extracted_text);
+      const mappedParsedData = {
+        db_receipt_id: result.parsed_data.db_receipt_id,
+        merchant_name: result.parsed_data.merchant_name || '',
+        date: result.parsed_data.date || '',
+        total_amount: result.parsed_data.total_amount || '',
+        gas_provider: result.parsed_data.gas_provider || '',
+        gas_address: result.parsed_data.gas_address || '',
+        gas_tax_id: result.parsed_data.gas_tax_id || '',
+        receipt_no: result.parsed_data.receipt_no || '',
+        liters: result.parsed_data.liters || '',
+        plate_no: result.parsed_data.plate_no || '',
+        milestone: result.parsed_data.milestone || '',
+        VAT: result.parsed_data.VAT || '',
+        gas_type: result.parsed_data.gas_type || '',
+        egat_address_th: result.parsed_data.egat_address_th || '',
+        egat_address_eng: result.parsed_data.egat_address_eng || '',
+        egat_tax_id: result.parsed_data.egat_tax_id || '',
+        receipt_type: result.parsed_data.receipt_type || receiptType,
+      };
+
+      setParsedData(mappedParsedData);
+      setEditableFields(mappedParsedData);
+      setStatusMessage('Receipt processed successfully!');
+      setIsError(false);
+
     } catch (error) {
-      console.error('Network or processing error:', error);
-      setStatusMessage('Failed to connect to the backend or process image. Please check console for details.');
+      console.error("Error during receipt processing:", error);
+      setStatusMessage(`Error: ${error.message}`);
       setIsError(true);
-      setExtractedText('');
       setParsedData(null);
-      setEditableFields({
-        merchant_name: '', date: '', total_amount: '', gas_provider: '',
-        gas_name: '', gas_address: '', gas_tax_id: '', receipt_no: '',
-        liters: '', plate_no: '', milestone: '', VAT: '', gas_type: '',
-        egat_address_th: '', egat_address_eng: '', egat_tax_id: ''
-      });
+      setExtractedText('');
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [selectedFile, receiptType, clearAllData]);
 
-  const handleSaveChanges = async () => {
-    console.log("Save Changes button clicked!");
-    // This function now expects parsedData.db_receipt_id to be available for updating.
+
+  const handleFieldChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setEditableFields(prevFields => ({
+      ...prevFields,
+      [name]: value,
+    }));
+  }, []);
+
+  const handleSaveChanges = useCallback(async () => {
     if (!parsedData || !parsedData.db_receipt_id) {
-      setStatusMessage('No receipt ID found to save changes. Process an image first.');
+      setStatusMessage('No receipt data to save or no ID found.');
       setIsError(true);
       return;
     }
 
+    setIsProcessing(true);
     setStatusMessage('Saving changes...');
     setIsError(false);
 
-    // Map frontend snake_case fields to backend camelCase fields
-    // and clean/parse numbers before sending
+    const receiptId = parsedData.db_receipt_id;
     const dataToSend = {
-      // No need for 'id' here, it's in the URL for PUT request
       merchantName: editableFields.merchant_name,
       transactionDate: editableFields.date,
-      // Convert total_amount to a clean float
-      amount: editableFields.total_amount ? parseFloat(String(editableFields.total_amount).replace(/,/g, '')) : null,
+      amount: editableFields.total_amount,
       gasProvider: editableFields.gas_provider,
-      gasName: editableFields.gas_name,
       gasAddress: editableFields.gas_address,
       gasTaxId: editableFields.gas_tax_id,
       receiptNo: editableFields.receipt_no,
-      // Convert liters to a clean float
-      liters: editableFields.liters ? parseFloat(String(editableFields.liters).replace(/,/g, '')) : null,
+      liters: editableFields.liters,
       plateNo: editableFields.plate_no,
       milestone: editableFields.milestone,
-      // Convert VAT to a clean float
-      VAT: editableFields.VAT ? parseFloat(String(editableFields.VAT).replace(/,/g, '')) : null,
+      VAT: editableFields.VAT,
       gasType: editableFields.gas_type,
       egatAddressTH: editableFields.egat_address_th,
       egatAddressENG: editableFields.egat_address_eng,
       egatTaxId: editableFields.egat_tax_id,
-      // Add other fields from parsedData if they are relevant for update and not in editableFields
-      // e.g., receiptType: parsedData.receipt_type_used,
-      // rawExtractedText: parsedData.extracted_text,
-      // debugImagePath: parsedData.debug_image_path,
+      receiptType: editableFields.receipt_type,
     };
 
-    // Filter out undefined or empty string values (can adjust this logic as needed)
-    // to only send fields that have a meaningful value, or explicitly send nulls.
-    // Backend controller handles mapping, but this ensures no 'undefined' values are sent.
     Object.keys(dataToSend).forEach(key => {
-      // If a field is explicitly an empty string, set it to null for DB consistency
-      // or if it's 'N/A' from OCR
       if (dataToSend[key] === '' || dataToSend[key] === 'N/A') {
         dataToSend[key] = null;
       }
+      // Convert numbers that might have commas or are strings from input fields
+      if (['amount', 'liters', 'VAT'].includes(key) && typeof dataToSend[key] === 'string') {
+        dataToSend[key] = parseFloat(dataToSend[key].replace(/,/g, '')) || null;
+      }
     });
 
+    console.log("Saving changes for ID:", receiptId, "Data:", dataToSend);
 
-    console.log("Saving changes for ID:", parsedData?.db_receipt_id, "Data:", dataToSend);
     try {
-      // This is now a PUT request to UPDATE an existing receipt record in the DB.
-      const response = await fetch(`http://localhost:5000/api/receipts/${parsedData.db_receipt_id}`, {
-        method: 'PUT', // Changed back to PUT for updating
+      const response = await fetch(`http://localhost:5000/api/receipts/${receiptId}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(dataToSend),
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        setStatusMessage(result.message || 'Changes saved successfully!');
-        setIsError(false);
-        console.log("Updated Receipt:", result.receipt);
-        clearAllData(); // Optionally clear data after successful save
-      } else {
+      if (!response.ok) {
         const errorData = await response.json();
-        setStatusMessage(`Error saving changes: ${errorData.error || 'Unknown error.'}`);
-        setIsError(true);
+        throw new Error(errorData.error || 'Failed to save changes.');
       }
+
+      const result = await response.json();
+      console.log("Updated Receipt:", result.receipt);
+      setStatusMessage('Changes saved successfully!');
+      setIsError(false);
+
+      const updatedMappedData = {
+        db_receipt_id: result.receipt.id,
+        merchant_name: result.receipt.merchantName || '',
+        date: result.receipt.transactionDate || '',
+        total_amount: result.receipt.amount || '',
+        gas_provider: result.receipt.gasProvider || '',
+        gas_address: result.receipt.gasAddress || '',
+        gas_tax_id: result.receipt.gasTaxId || '',
+        receipt_no: result.receipt.receiptNo || '',
+        liters: result.receipt.liters || '',
+        plate_no: result.receipt.plateNo || '',
+        milestone: result.receipt.milestone || '',
+        VAT: result.receipt.VAT || '',
+        gas_type: result.receipt.gasType || '',
+        egat_address_th: result.receipt.egatAddressTH || '',
+        egat_address_eng: result.receipt.egatAddressENG || '',
+        egat_tax_id: result.receipt.egatTaxId || '',
+        receipt_type: result.receipt.receiptType || '',
+      };
+      setParsedData(updatedMappedData);
+      setEditableFields(updatedMappedData);
+      clearAllData();
+
     } catch (error) {
-      console.error('Network error during save:', error);
-      setStatusMessage('Failed to connect to the backend to save changes.');
+      console.error("Error during saving changes:", error);
+      setStatusMessage(`Error saving changes: ${error.message}`);
       setIsError(true);
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }, [parsedData, editableFields]);
+
 
   return (
     <>
       <div className="app-container">
-        <div className="main-content-layout">
-          {/* Left Column: Upload Section */}
-          <div className="upload-section-container card-container">
-
-            <Header /> {/* Your Header component */}
-            <ReceiptTypeSelect
-              receiptType={receiptType}
-              handleReceiptTypeChange={handleReceiptTypeChange}
-            />
-            <ImageUpload
-              imagePreviewUrl={imagePreviewUrl}
-              handleImageChange={handleImageChange}
-              statusMessage={statusMessage}
-              isError={isError}
-            />
-            <ProcessButton
-              handleProcessReceipt={handleProcessReceipt}
-              selectedFile={selectedFile}
-              isProcessing={isProcessing}
-            />
-          </div>
-
-          {/* Right Column: Vertically stacked Form and Raw Output sections */}
-          <div className="right-content-column">
-            <div className="form-section-container card-container">
-              {parsedData ? ( // Only render form fields if parsedData exists
-                <>
-                  <ParsedDataDisplay
-                    editableFields={editableFields}
-                    handleFieldChange={handleFieldChange}
-                  />
-                  <SaveChangesButton handleSaveChanges={handleSaveChanges} />
-                </>
-              ) : ( // Show placeholder for form section if no parsedData
-                <div className="placeholder-box top">
-                  <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
-                </div>
-              )}
-            </div>
-
-            <div className="raw-output-section-container card-container">
-              {extractedText ? ( // Only render raw text if extractedText exists
-                <ExtractedTextDisplay extractedText={extractedText} />
-              ) : ( // Show placeholder for raw text section if no extractedText
-                <div className="placeholder-box bottom">
-                  <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Navigation Buttons */}
+        <div className="navigation-bar">
+          <button
+            onClick={() => setCurrentPage('scanner')}
+            className={`nav-button ${currentPage === 'scanner' ? 'active' : ''}`}
+          >
+            Receipt Scanner
+          </button>
+          <button
+            onClick={() => setCurrentPage('admin')}
+            className={`nav-button ${currentPage === 'admin' ? 'active' : ''}`}
+          >
+            Admin Page
+          </button>
         </div>
+
+        {currentPage === 'scanner' && (
+          <div className="main-content-layout">
+            {/* Left Column: Image Upload and Controls */}
+            <div className="upload-section-container card-container">
+              <Header />
+              <ReceiptTypeSelect
+                receiptType={receiptType}
+                handleReceiptTypeChange={handleReceiptTypeChange}
+              />
+              <ImageUpload
+                imagePreviewUrl={imagePreviewUrl}
+                handleImageChange={handleImageChange}
+                statusMessage={statusMessage}
+                isError={isError}
+              />
+              <ProcessButton
+                handleProcessReceipt={handleProcessReceipt}
+                selectedFile={selectedFile}
+                isProcessing={isProcessing}
+              />
+            </div>
+
+            {/* Right Column: Vertically stacked Form and Raw Output sections */}
+            <div className="right-content-column">
+              <div className="form-section-container card-container">
+                {parsedData ? (
+                  <>
+                    <ParsedDataDisplay
+                      editableFields={editableFields}
+                      handleFieldChange={handleFieldChange}
+                    />
+                    <SaveChangesButton handleSaveChanges={handleSaveChanges} />
+                  </>
+                ) : (
+                  <div className="placeholder-box top">
+                    <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="raw-output-section-container card-container">
+                {extractedText ? (
+                  <ExtractedTextDisplay extractedText={extractedText} />
+                ) : (
+                  <div className="placeholder-box bottom">
+                    <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentPage === 'admin' && (
+          <AdminPage /> // Render the AdminPage component
+        )}
       </div>
     </>
   );
