@@ -4,7 +4,7 @@ import React from 'react';
 function SaveChangesButton({ handleSaveChanges, statusMessage, isError }) {
   return (
     <div>
-      <button onClick={handleSaveChanges} className="save-button">
+      <button onClick={handleSaveChanges} className="save-button scanner-save-button">
         Save Changes
       </button>
       {statusMessage && (

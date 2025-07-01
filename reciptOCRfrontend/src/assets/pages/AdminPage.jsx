@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
-import '../css/AdminPage.css';
 import '../../app.css';
 
 function AdminPage() {

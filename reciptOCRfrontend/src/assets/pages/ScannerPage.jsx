@@ -5,7 +5,7 @@ import ProcessButton from '../components/ProcessButton';
 import ParsedDataDisplay from '../components/ParsedDataDisplay';
 import ExtractedTextDisplay from '../components/ExtractedTextDisplay';
 import SaveChangesButton from '../components/SaveChangesButton';
-import '../css/ScannerPage.css';
+import '../../app.css';
 
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -282,16 +282,18 @@ function ScannerPage() {
       {/* Upload Section */}
       <div className="upload-section-container card-container fade-in">
         <div className="section-title"><i className="fas fa-upload"></i> อัปโหลดใบเสร็จ</div>
-        <ReceiptTypeSelect
-          receiptType={receiptType}
-          handleReceiptTypeChange={handleReceiptTypeChange}
-        />
         <ImageUpload
           imagePreviewUrl={imagePreviewUrl}
           handleImageChange={handleImageChange}
           statusMessage={statusMessage}
           isError={isError}
         />
+        <br />
+        <ReceiptTypeSelect
+          receiptType={receiptType}
+          handleReceiptTypeChange={handleReceiptTypeChange}
+        />
+        <br />
         <ProcessButton
           handleProcessReceipt={handleProcessReceipt}
           selectedFile={selectedFile}

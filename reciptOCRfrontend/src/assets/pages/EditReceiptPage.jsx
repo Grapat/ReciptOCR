@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import '../css/AdminPage.css';
 import '../../app.css';
 
 function EditReceiptPage() {
