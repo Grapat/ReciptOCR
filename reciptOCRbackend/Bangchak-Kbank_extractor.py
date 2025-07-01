@@ -8,9 +8,9 @@ from PIL import Image  # Make sure PIL is imported for image_pil handling
 import pytesseract  # Import pytesseract
 
 # This will create a 'logs_a5' folder right next to A5_extractor.py
-LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs_a5')
+LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(LOG_FOLDER, exist_ok=True)
-LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'a5_extractor.log')
+LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'BKB_extractor.log')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

@@ -8,7 +8,7 @@ from PIL import Image  # Make sure PIL is imported for image_pil handling
 import pytesseract  # Import pytesseract
 
 # This will create a 'logs_a5' folder right next to A5_extractor.py
-LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs_a5')
+LOG_FOLDER = os.path.join(os.path.dirname(__file__), 'logs')
 os.makedirs(LOG_FOLDER, exist_ok=True)
 LOG_FILE_PATH = os.path.join(LOG_FOLDER, 'a5_extractor.log')
 
@@ -101,40 +101,10 @@ def _extract_id(text_to_search, min_len=10, max_len=15):
     return None
 
 
-def _extract_liters(text_to_search):
-    liters_match = re.search(
-        r'(\d{1,}(?:[.,]\d{1,})?)\s*(?:ลิตร|liters|litre|L)', text_to_search, re.IGNORECASE
-    )
-    if liters_match:
-        value = liters_match.group(1).replace(',', '')
-        try:
-            return float(value)
-        except ValueError:
-            return None
-    logger.debug(f"No liters found in '{text_to_search}'")
-    return None
-
-
-def _extract_vat(text_to_search):
-    vat_match = re.search(
-        r'(?:total|vat.*?)(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2}(?!\d))', text_to_search, re.IGNORECASE)
-    if vat_match:
-        value = vat_match.group(1).replace(',', '')
-        try:
-            return float(value)
-        except ValueError:
-            return None
-    logger.debug(f"No VAT found in '{text_to_search}'")
-    return None
-
-
 def _extract_plate_no(text_to_search):
-    # Regex to find "ทะเบียนรถ" followed by the plate number pattern
-    # It captures the plate number in group 1
     plate_no_match = re.search(
         r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{8})', text_to_search, re.IGNORECASE)
     if plate_no_match:
-        # Return the captured group (the plate number itself) with spaces removed
         logger.debug(
             f"Extracted plate number: {plate_no_match.group(1).replace(' ', '')}")
         return plate_no_match.group(1).replace(" ", "")
@@ -308,9 +278,9 @@ def extract_data(image_pil, original_filename, initial_result):  # New signature
                     elif field == "total_amount":
                         extracted_value = _extract_amount(text_to_search)
                     elif field == "VAT":
-                        extracted_value = _extract_vat(text_to_search)
+                        extracted_value = _extract_amount(text_to_search)
                     elif field == "liters":
-                        extracted_value = _extract_liters(text_to_search)
+                        extracted_value = _extract_amount(text_to_search)
                     elif field == "receipt_no":
                         receipt_match = re.search(
                             r'((?:TIO)?\d{15}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})', text_to_search, re.IGNORECASE)

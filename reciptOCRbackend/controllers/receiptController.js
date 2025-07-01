@@ -117,6 +117,12 @@ exports.processReceipt = async (req, res) => {
         }
       }
       // --- End Date Conversion Logic ---
+
+      // Remove newlines from rawExtractedText before saving to DB
+      const cleanedRawExtractedText = result.extracted_text
+        ? result.extracted_text.replace(/[\n\r]/g, "")
+        : null;
+
       // Create a new receipt record in the database
       const newReceipt = await db.Receipt.create({
         merchantName: parsedData.merchant_name || null,
@@ -138,7 +144,7 @@ exports.processReceipt = async (req, res) => {
         egatTaxId: parsedData.egat_tax_id || null,
         // Additional fields from OCR processing
         receiptType: receiptType, // Use the type sent from frontend or generic
-        rawExtractedText: result.extracted_text,
+        rawExtractedText: cleanedRawExtractedText, // Use the cleaned text
         debugImagePath: result.debug_image_url,
       });
 
