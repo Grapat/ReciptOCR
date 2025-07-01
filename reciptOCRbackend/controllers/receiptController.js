@@ -71,12 +71,57 @@ exports.processReceipt = async (req, res) => {
     try {
       const result = JSON.parse(pythonOutput);
       const parsedData = result.parsed_data;
+      // --- Date Conversion Logic ---
+      let transactionDate = null;
+      if (parsedData.date && parsedData.date !== "N/A") {
+        const dateParts = parsedData.date.split("-"); // Assumes DD-MM-YYYY format from Python
+        if (dateParts.length === 3) {
+          let day = parseInt(dateParts[0], 10);
+          let month = parseInt(dateParts[1], 10);
+          let year = parseInt(dateParts[2], 10);
 
+          // Convert Thai Buddhist year (BE) to Gregorian year (AD)
+          // Thailand's Buddhist era is 543 years ahead of Gregorian calendar
+          if (year > 2500) {
+            // Simple check for Thai Buddhist year
+            year -= 543;
+          }
+
+          // Create a Date object - Month is 0-indexed in JavaScript Date
+          // Ensure day and month are valid numbers
+          if (
+            !isNaN(day) &&
+            !isNaN(month) &&
+            !isNaN(year) &&
+            month >= 1 &&
+            month <= 12 &&
+            day >= 1 &&
+            day <= 31
+          ) {
+            try {
+              // Construct a date string in YYYY-MM-DD format for Sequelize
+              const formattedDate = `${year}-${String(month).padStart(
+                2,
+                "0"
+              )}-${String(day).padStart(2, "0")}`;
+              transactionDate = new Date(formattedDate); // Convert to Date object
+              // Validate if the date object is valid
+              if (isNaN(transactionDate.getTime())) {
+                transactionDate = null; // Set to null if date is invalid after conversion
+              }
+            } catch (dateError) {
+              console.error("Error creating Date object:", dateError);
+              transactionDate = null;
+            }
+          }
+        }
+      }
+      // --- End Date Conversion Logic ---
       // Create a new receipt record in the database
       const newReceipt = await db.Receipt.create({
         merchantName: parsedData.merchant_name || null,
         // Ensure date is handled correctly for TransactionDate
-        transactionDate: parsedData.date || null,
+        transactionDate: transactionDate || null,
         amount: cleanAndParseNumber(parsedData.total_amount),
         gasProvider: parsedData.gas_provider || null,
         gasName: parsedData.gas_name || null,

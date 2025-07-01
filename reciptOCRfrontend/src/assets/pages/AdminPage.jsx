@@ -1,15 +1,22 @@
-// components/AdminPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import '../css/AdminPage.css';
+import '../../app.css';
 
 function AdminPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(''); // Renamed from editStatusMessage for clarity
+  const [isError, setIsError] = useState(false); // Renamed from isEditError for clarity
+
+  const navigate = useNavigate(); // Initialize useNavigate
 
   const fetchAllReceipts = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setStatusMessage(''); // Clear previous messages on new fetch
+    setIsError(false);
     try {
       const response = await fetch('http://localhost:5000/api/receipts');
       if (!response.ok) {
@@ -34,7 +41,9 @@ function AdminPage() {
       return;
     }
 
-    setLoading(true); // Show loading while deleting
+    setLoading(true);
+    setStatusMessage('Deleting receipt...');
+    setIsError(false);
     try {
       const response = await fetch(`http://localhost:5000/api/receipts/${id}`, {
         method: 'DELETE',
@@ -45,37 +54,37 @@ function AdminPage() {
         throw new Error(errorData.error || 'Failed to delete receipt.');
       }
 
-      // If delete is successful, re-fetch all receipts to update the list
-      await fetchAllReceipts();
-      alert('Receipt deleted successfully!'); // Use alert for simple confirmation
+      await fetchAllReceipts(); // Refetch all receipts to update the list
+      setStatusMessage('Receipt deleted successfully!');
+      setIsError(false);
     } catch (err) {
-      console.error("Error deleting receipt:", err);
-      setError(`Failed to delete receipt: ${err.message}`);
+      console.error("Failed to delete receipt:", err);
+      setStatusMessage(`Error deleting receipt: ${err.message}`);
+      setIsError(true);
     } finally {
       setLoading(false);
     }
   }, [fetchAllReceipts]);
 
-  // Note: For actual admin page, you'd implement an Edit functionality
-  // which might navigate to a specific edit form or open a modal.
-  const handleEditReceipt = (id) => {
-    alert(`Edit functionality for ID: ${id} not yet implemented.`);
-    // You would typically navigate to an edit page or open a modal here
-  };
-
+  // Modified handleEditReceipt to navigate to the new edit page
+  const handleEditReceipt = useCallback((id) => {
+    navigate(`/admin/edit/${id}`);
+  }, [navigate]);
 
   return (
-    <div className="admin-page-container card-container">
-      <h2 className="admin-page-title">Admin Dashboard - All Receipts</h2>
+    <div className="admin-page-container">
+      <h2>จัดการใบเสร็จ (Admin)</h2>
 
-      {loading && <p className="status-message">Loading receipts...</p>}
-      {error && <p className="status-message error">{error}</p>}
-
-      {!loading && !error && receipts.length === 0 && (
-        <p className="status-message">No receipts found in the database.</p>
+      {statusMessage && (
+        <p className={`status-message ${isError ? 'status-message-error' : 'status-message-success'}`}>
+          {statusMessage}
+        </p>
       )}
 
-      {!loading && !error && receipts.length > 0 && (
+      {loading && <p>Loading receipts...</p>}
+      {error && <p className="status-message status-message-error">{error}</p>}
+
+      {!loading && !error && (
         <div className="receipts-table-wrapper">
           <table className="receipts-table">
             <thead>
@@ -85,25 +94,35 @@ function AdminPage() {
                 <th>Date</th>
                 <th>Amount</th>
                 <th>Gas Provider</th>
-                {/* Add more columns as needed */}
+                <th>Receipt No.</th>
+                <th>Plate No.</th>
+                <th>Gas Type</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {receipts.map((receipt) => (
-                <tr key={receipt.id}>
-                  <td>{receipt.id.substring(0, 8)}...</td> {/* Show truncated ID */}
-                  <td>{receipt.merchantName || 'N/A'}</td>
-                  <td>{receipt.transactionDate ? new Date(receipt.transactionDate).toLocaleDateString() : 'N/A'}</td>
-                  <td>{receipt.amount !== null ? parseFloat(receipt.amount).toLocaleString() : 'N/A'}</td>
-                  <td>{receipt.gasProvider || 'N/A'}</td>
-                  {/* Add more columns here */}
-                  <td className="actions-cell">
-                    <button onClick={() => handleEditReceipt(receipt.id)} className="action-button edit-button">Edit</button>
-                    <button onClick={() => handleDeleteReceipt(receipt.id)} className="action-button delete-button">Delete</button>
-                  </td>
+              {receipts.length === 0 ? (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center' }}>No receipts found.</td>
                 </tr>
-              ))}
+              ) : (
+                receipts.map((receipt) => (
+                  <tr key={receipt.id}>
+                    <td>{receipt.id.substring(0, 8)}...</td>
+                    <td>{receipt.merchantName || 'N/A'}</td>
+                    <td>{receipt.transactionDate ? new Date(receipt.transactionDate).toLocaleDateString('th-TH') : 'N/A'}</td>
+                    <td>{receipt.amount !== null ? parseFloat(receipt.amount).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</td>
+                    <td>{receipt.gasProvider || 'N/A'}</td>
+                    <td>{receipt.receiptNo || 'N/A'}</td>
+                    <td>{receipt.plateNo || 'N/A'}</td>
+                    <td>{receipt.gasType || 'N/A'}</td>
+                    <td className="actions-cell">
+                      <button onClick={() => handleEditReceipt(receipt.id)} className="action-button edit-button">Edit</button>
+                      <button onClick={() => handleDeleteReceipt(receipt.id)} className="action-button delete-button">Delete</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

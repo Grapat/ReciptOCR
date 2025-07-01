@@ -5,7 +5,8 @@ import io
 import pytesseract
 import re
 import cv2
-import numpy as np # Still needed for initial image_pil to np.array if extract_data expects it
+# Still needed for initial image_pil to np.array if extract_data expects it
+import numpy as np
 import json
 from datetime import datetime
 import importlib
@@ -19,22 +20,8 @@ PROCESSED_UPLOAD_FOLDER = os.path.join(
 os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
 
 
-def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unknown"): # Added original_filename arg
-    """
-    Performs dynamic OCR parsing on a given PIL image, attempting to extract
-    various fields from a receipt, including EGAT specific information.
-
-    Args:
-        image_pil (PIL.Image.Image): The input receipt image as a PIL Image object.
-        receipt_type (str): The type of receipt (e.g., "KBPTT", "KTBCP"), used to load specific extractor logic.
-        original_filename (str): The original filename for debug output.
-
-    Returns:
-        tuple: A tuple containing:
-            - dict: A dictionary of parsed data (e.g., merchant_name, total_amount, egat_address_th).
-            - numpy.ndarray: An OpenCV image with bounding boxes drawn for debugging.
-            - str: The full extracted OCR text, now processed to be lowercase with no spaces.
-    """
+# Added original_filename arg
+def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unknown"):
     initial_result = {
         "merchant_name": "N/A",
         "date": "N/A",
@@ -59,23 +46,6 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
     debug_image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
     parsed_data = initial_result.copy()
 
-    # --- Preprocessing Improvements Start (REMOVED FROM HERE) ---
-    # The preprocessing will now happen inside the extractor module
-    # --- Preprocessing Improvements End ---
-
-    # --- ADD THIS SECTION FOR DEBUGGING PREPROCESSED IMAGE (REMOVE OR MOVE) ---
-    # This debugging block for preprocessed image should likely be moved
-    # into the extractor module, as that's where preprocessing now happens.
-    # For now, let's remove it from here.
-    # timestamp = datetime.now().strftime("%Y%m%d")
-    # preprocessed_debug_image_path = os.path.join(
-    #     PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_{receipt_type}_{timestamp}_{os.path.basename(original_filename)}')
-    # processed_image_for_ocr.save(preprocessed_debug_image_path)
-    # sys.stderr.write(
-    #     f"Preprocessed debug image saved to: {preprocessed_debug_image_path}\n")
-    # --- END ADDITION ---
-
-
     # Try to dynamically load the specific extractor module
     extractor_module = None
     if receipt_type and receipt_type != "generic":
@@ -98,28 +68,30 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
     if extractor_module:
         # Pass the original PIL image to the extractor
         parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching = \
-            extractor_module.extract_data(image_pil, original_filename, initial_result) # Pass original_filename
+            extractor_module.extract_data(
+                image_pil, original_filename, initial_result)  # Pass original_filename
     else:
         # Fallback for generic OCR if no specific extractor is found
-        # In this case, you'd perform a basic OCR here with generic preprocessing
-        # or just on the raw image if you prefer to have a "generic_extractor.py"
-        # For simplicity, let's assume a basic generic process if no extractor
         img_np_fallback = np.array(image_pil)
-        img_cv_gray_fallback = cv2.cvtColor(img_np_fallback, cv2.COLOR_RGB2GRAY)
+        img_cv_gray_fallback = cv2.cvtColor(
+            img_np_fallback, cv2.COLOR_RGB2GRAY)
         # Use simple adaptive thresholding for generic fallback
         img_thresh_fallback = cv2.adaptiveThreshold(img_cv_gray_fallback, 255,
-                                                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                                cv2.THRESH_BINARY, 11, 2)
+                                                    cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                                    cv2.THRESH_BINARY, 11, 2)
         processed_image_for_ocr_fallback = Image.fromarray(img_thresh_fallback)
 
-        tesseract_config = r'--oem 1 --psm 3' # Generic default PSM
-        data_fallback = pytesseract.image_to_data(processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
-        raw_ocr_text_fallback = pytesseract.image_to_string(processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, config=tesseract_config)
-        cleaned_extracted_text_for_matching = raw_ocr_text_fallback.replace(' ', '').lower()
+        tesseract_config = r'--oem 1 --psm 3'  # Generic default PSM
+        data_fallback = pytesseract.image_to_data(
+            processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
+        raw_ocr_text_fallback = pytesseract.image_to_string(
+            processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, config=tesseract_config)
+        cleaned_extracted_text_for_matching = raw_ocr_text_fallback.replace(
+            ' ', '').lower()
         # parsed_data remains initial_result.copy()
         # debug_image_cv2 remains as the initial conversion
-        sys.stderr.write("Falling back to generic OCR with basic processing.\n")
-
+        sys.stderr.write(
+            "Falling back to generic OCR with basic processing.\n")
 
     # Final cleanup: Change any remaining "N/A" to None for database compatibility
     for field in parsed_data:
@@ -127,6 +99,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
             parsed_data[field] = None
 
     return parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching
+
 
 # --- Main script execution ---
 if __name__ == '__main__':
@@ -136,7 +109,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     receipt_type = sys.argv[1]
-    original_filename = sys.argv[2] # Now passed to dynamic_parse_ocr
+    original_filename = sys.argv[2]  # Now passed to dynamic_parse_ocr
 
     try:
         # Read image bytes from stdin (as sent by Node.js multer)
