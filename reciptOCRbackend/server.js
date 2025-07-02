@@ -6,6 +6,7 @@ const db = require("./models"); // Import Sequelize models
 
 // Import your API routes
 const receiptRoutes = require("./routes/receiptRoutes");
+const masterRoutes = require("./routes/masterRoutes");
 
 const app = express();
 const port = 5000; // Node.js server will run on port 5000
@@ -26,7 +27,7 @@ app.use(express.urlencoded({ extended: true })); // For parsing URL-encoded bodi
 // --- Register API Routes ---
 // All routes starting with /api/receipts will be handled by receiptRoutes
 app.use("/api/receipts", receiptRoutes);
-
+app.use("/api/master", masterRoutes);
 // Catch-all for unhandled routes (optional, but good practice)
 app.use((req, res, next) => {
   res.status(404).send("API endpoint not found");

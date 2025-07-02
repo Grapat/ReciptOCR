@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import '../../app.css';
 
 function AdminPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusMessage, setStatusMessage] = useState(''); // Renamed from editStatusMessage for clarity
-  const [isError, setIsError] = useState(false); // Renamed from isEditError for clarity
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isError, setIsError] = useState(false);
 
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
 
   const fetchAllReceipts = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setStatusMessage(''); // Clear previous messages on new fetch
+    setStatusMessage('');
     setIsError(false);
     try {
       const response = await fetch('http://localhost:5000/api/receipts');
