@@ -167,7 +167,7 @@ def extract_data(image_pil, original_filename, initial_result):  # New signature
     # For A5.jpg (clear image), blockSize 21 and C=5 or C=2 should work well
     img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
                                        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY, 21, 10)  # <--- TWEAK THESE VALUES FOR A5 TYPE
+                                       cv2.THRESH_BINARY, 31, 10)  # <--- TWEAK THESE VALUES FOR A5 TYPE
 
     # Optional: Morphological operations (uncomment and adjust as needed)
     # kernel = np.ones((2,2), np.uint8) # Define kernel here if uncommenting
@@ -178,12 +178,10 @@ def extract_data(image_pil, original_filename, initial_result):  # New signature
     processed_image_for_ocr = Image.fromarray(img_thresh)
 
     # --- Optional: Save preprocessed debug image from within the extractor ---
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S")  # Include time for uniqueness
     # Use original_filename for more context in debug file
     base_original_filename = os.path.basename(original_filename)
     preprocessed_debug_image_path = os.path.join(
-        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_A5_{timestamp}_{base_original_filename}')
+        PROCESSED_UPLOAD_FOLDER, f'debug_preprocessed_A5_{base_original_filename}')
     processed_image_for_ocr.save(preprocessed_debug_image_path)
     logger.debug(
         f"Preprocessed debug image saved to: {preprocessed_debug_image_path}")
@@ -210,18 +208,19 @@ def extract_data(image_pil, original_filename, initial_result):  # New signature
     # Define all global regex patterns here. These are used as a fallback if keyword-based fails.
     global_regex_patterns = {
         # Adjusted date regex for better capture after keywords
-        "date": r"(?:วันที่พิมพ์|มือจ่าย)\s*(\d{1,2}/\d{1,2}/\d{4})",
+        "date": r"(?:วันที่พิมพ์|มือจ่าย|วันที่ขาย)\s*(\d{1,2}/\d{1,2}/\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
-        "egat_address_eng": r"((?:electricitygeneratingauthorityofthailand|egat).*?\s.*?1130)",
-        "egat_tax_id": r"(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})",
-        "merchant_name": r"((บริษัท.*?กัด)|(ห้างหุ้น.*?กัด))",
-        "total_amount": r"(?:fleet.*?)(?P<money_amount>\d{1,3}(?:\d{3})*\.\d{2}(?!\d))",
+        "egat_address_eng": r"((?:electricitygenerating).*?\s.*?1130)",
+        "egat_tax_id": r"(099\d{10,15})",
+        "gas_tax_id": r'(?:เสียภาษี)[:\s]*(\d{10,15})',
+        "merchant_name": r"(บริษัท.*?กัด)|(ห้างหุ้น.*?กัด)",
+        "total_amount": r"fleet.*?:(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2})",
         "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
-        "gas_address": r"(?:ที่อยู่|address|addr)[:\s]*(.*?)(?:\s*\b\d{5}\b)?(?=\s*(?:โทร|tel|tax|fax|เลขประจำตัวผู้เสียภาษี|$))",
-        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(.{7})',
-        "gas_tax_id": r'(?:เสียภาษี|ภาษี)[:\s]*(\d{10,15})',
+        "gas_address": r"(?:ที่อยู่|address)[:\s]*(?P<captured_text>.*?\b\d{5}\b)",
+        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(?P<plate_no>(?:[ก-ฮ]{1,2}|[1-9])(?:[ก-ฮ]{1,2}|\d{1,4}){1,2})',
         "milestone": r'(?:เลขไมล์|ไมล์)[:\s]*(.{6})',
         "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
+        "liters": r"(?:ราคา/หน่วยปริมาณ|unitprice)[:\s]*(\d+\.\d{2})",
     }
 
     # Define keyword mappings for local, keyword-based extraction (unchanged from your file)
@@ -281,56 +280,12 @@ def extract_data(image_pil, original_filename, initial_result):  # New signature
                         extracted_value = _extract_amount(text_to_search)
                     elif field == "liters":
                         extracted_value = _extract_amount(text_to_search)
-                    elif field == "receipt_no":
-                        receipt_match = re.search(
-                            r'((?:TIO)?\d{15}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})', text_to_search, re.IGNORECASE)
-                        if receipt_match:
-                            extracted_value = receipt_match.group(1).strip()
                     elif field == "plate_no":
                         extracted_value = _extract_plate_no(text_to_search)
                     elif field == "milestone":
                         extracted_value = _extract_milestone(text_to_search)
                     elif field == "gas_type":
                         extracted_value = _normalize_gas_type(text_to_search)
-                    elif field == 'merchant_name':
-                        # Special handling for company names with "บริษัท" and "จำกัด"
-                        if any(kw.lower() == word.lower() for kw in ['บริษัท', 'จำกัด']):
-                            company_name_words = []
-                            # Look a few words ahead
-                            for k in range(i, min(i+5, len(data['text']))):
-                                w = data['text'][k].strip()
-                                if w:
-                                    company_name_words.append(w)
-                                    if 'จำกัด' in w.lower():  # Stop if "จำกัด" is found
-                                        break
-                            if company_name_words:
-                                full_name = " ".join(company_name_words)
-                                if 'บริษัท' in full_name and 'จำกัด' in full_name:
-                                    extracted_value = full_name
-                    elif field in ['egat_address_th', 'egat_address_eng']:
-                        # Logic to extract address lines after EGAT keywords
-                        collected_address_words = []
-                        current_line_num = data['line_num'][i]
-                        for k in range(i + 1, len(data['text'])):
-                            # Collect words on the same or next line
-                            if data['text'][k].strip() and data['line_num'][k] == current_line_num:
-                                collected_address_words.append(
-                                    data['text'][k].strip())
-                            elif data['text'][k].strip() and data['line_num'][k] == current_line_num + 1:
-                                collected_address_words.append(
-                                    data['text'][k].strip())
-                                current_line_num += 1  # Move to the next line number if a word from it is collected
-                            else:
-                                break  # Stop if a gap or completely new line
-                        if collected_address_words:
-                            val = " ".join(collected_address_words)
-                            # Clean address from trailing non-address info (zip code, phone, tax ID etc.)
-                            extracted_value = re.sub(
-                                r'\d{5}\s*(?:|โทร|tel|fax|โทรสาร|เว็บไซต์|web|email|เลขประจำตัวผู้เสียภาษี|taxid).*', '', val, flags=re.IGNORECASE).strip()
-                            if extracted_value == '':  # If cleaning made the address empty
-                                extracted_value = None
-                    elif field in ['egat_tax_id', 'gas_tax_id']:
-                        extracted_value = _extract_id(text_to_search, 13, 13)
                     elif field == "gas_provider":
                         lower_text = text_to_search.lower()
                         if "ptt" in lower_text:
