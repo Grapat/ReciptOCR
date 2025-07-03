@@ -351,6 +351,8 @@ function ScannerPage() {
           handleImageChange={handleImageChange}
           statusMessage={statusMessage}
           isError={isError}
+          setSelectedFile={setSelectedFile}       // ✅ add this
+          setImagePreviewUrl={setImagePreviewUrl} // ✅ add this
         />
         <br />
         <ReceiptTypeSelect

@@ -1,13 +1,6 @@
 // components/ParsedDataDisplay.jsx
 import React from 'react';
 
-function convertBuddhistToGregorian(dateStr) {
-    if (!dateStr) return '';
-    const [year, month, day] = dateStr.split('-');
-    const gregorianYear = parseInt(year) - 543;
-    return `${gregorianYear}-${month}-${day}`;
-}
-
 function ParsedDataDisplay({ editableFields, handleFieldChange, validEgatAddrTH = [], validEgatAddrEng = [] }) {
 
     return (
@@ -30,15 +23,12 @@ function ParsedDataDisplay({ editableFields, handleFieldChange, validEgatAddrTH 
                 <label htmlFor="date" className="form-label">
                     วันที่:
                 </label>
-                {console.log(convertBuddhistToGregorian(editableFields.date))}
-                {console.log(editableFields.date)}
-
                 <input
                     type="date" // Changed from "text" to "date"
                     id="date"
                     name="date"
                     className="form-input"
-                    value={convertBuddhistToGregorian(editableFields.date) || ''}
+                    value={editableFields.date || ''}
                     onChange={handleFieldChange}
                 />
             </div>
@@ -188,8 +178,6 @@ function ParsedDataDisplay({ editableFields, handleFieldChange, validEgatAddrTH 
                     value={editableFields.egat_address_th || ''}
                     onChange={handleFieldChange}
                 >
-                    {console.log(editableFields.egat_address_th)}
-
                     <option value={editableFields.egat_address_th}>
                         {editableFields.egat_address_th}
                     </option>
