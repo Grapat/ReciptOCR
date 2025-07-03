@@ -1,7 +1,15 @@
 // components/ParsedDataDisplay.jsx
 import React from 'react';
 
-function ParsedDataDisplay({ editableFields, handleFieldChange }) {
+function convertBuddhistToGregorian(dateStr) {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    const gregorianYear = parseInt(year) - 543;
+    return `${gregorianYear}-${month}-${day}`;
+}
+
+function ParsedDataDisplay({ editableFields, handleFieldChange, validEgatAddrTH = [], validEgatAddrEng = [] }) {
+
     return (
         <div className="parsed-data-container">
             <h3 className="parsed-data-title">Parsed Data:</h3>
@@ -22,12 +30,15 @@ function ParsedDataDisplay({ editableFields, handleFieldChange }) {
                 <label htmlFor="date" className="form-label">
                     วันที่:
                 </label>
+                {console.log(convertBuddhistToGregorian(editableFields.date))}
+                {console.log(editableFields.date)}
+
                 <input
                     type="date" // Changed from "text" to "date"
                     id="date"
                     name="date"
                     className="form-input"
-                    value={editableFields.date || ''}
+                    value={convertBuddhistToGregorian(editableFields.date) || ''}
                     onChange={handleFieldChange}
                 />
             </div>
@@ -170,27 +181,42 @@ function ParsedDataDisplay({ editableFields, handleFieldChange }) {
                 <label htmlFor="egat_address_th" className="form-label">
                     ที่อยู่EGAT (Thai):
                 </label>
-                <input
-                    type="text"
+                <select
                     id="egat_address_th"
                     name="egat_address_th"
                     className="form-input"
                     value={editableFields.egat_address_th || ''}
                     onChange={handleFieldChange}
-                />
+                >
+                    {console.log(editableFields.egat_address_th)}
+
+                    <option value={editableFields.egat_address_th}>
+                        {editableFields.egat_address_th}
+                    </option>
+                    {validEgatAddrTH.map((type, index) => (
+                        <option key={index} value={type}>{type}</option>
+                    ))}
+                </select>
             </div>
             <div className="form-group">
                 <label htmlFor="egat_address_eng" className="form-label">
                     ที่อยู่EGAT (English):
                 </label>
-                <input
+                <select
                     type="text"
                     id="egat_address_eng"
                     name="egat_address_eng"
                     className="form-input"
                     value={editableFields.egat_address_eng || ''}
                     onChange={handleFieldChange}
-                />
+                >
+                    <option value={editableFields.egat_address_eng}>
+                        {editableFields.egat_address_eng}
+                    </option>
+                    {validEgatAddrEng.map((type, index) => (
+                        <option key={index} value={type}>{type}</option>
+                    ))}
+                </select>
             </div>
             <div className="form-group">
                 <label htmlFor="egat_tax_id" className="form-label">

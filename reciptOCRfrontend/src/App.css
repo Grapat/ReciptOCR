@@ -15,6 +15,10 @@ body,
   line-height: 1.6; /* Improved readability */
 }
 
+.main-content-layout {
+  max-width: 90vw;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
@@ -366,14 +370,11 @@ body,
 .image-preview-container {
   width: 100%;
   max-height: 400px;
-  max-width: 400px;
   overflow: hidden;
   background-color: #f0f0f0;
   border: 2px dashed #ccc;
   border-radius: 8px;
   display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .image-preview {

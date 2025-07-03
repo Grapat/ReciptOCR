@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReceiptTypeSelect from '../components/ReceiptTypeSelect';
 import ImageUpload from '../components/ImageUpload';
 import ProcessButton from '../components/ProcessButton';
@@ -15,6 +15,7 @@ function ScannerPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedText, setExtractedText] = useState('');
   const [parsedData, setParsedData] = useState(null);
+  const [masterData, setMasterData] = useState(null);
   const [editableFields, setEditableFields] = useState({
     merchant_name: '',
     date: '',
@@ -35,6 +36,21 @@ function ScannerPage() {
   const [receiptType, setReceiptType] = useState('generic');
 
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    const fetchMasterData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/master');
+        if (!response.ok) throw new Error('Failed to fetch master data');
+        const data = await response.json();
+        setMasterData(data);
+      } catch (error) {
+        console.error("Error fetching master data:", error);
+      }
+    };
+
+    fetchMasterData();
+  }, []);
 
   const clearAllData = useCallback(() => {
     setImagePreviewUrl(null);
@@ -188,6 +204,38 @@ function ScannerPage() {
       }
     }
 
+    function similarity(str1, str2) {
+      if (!str1 || !str2) return 0;
+
+      str1 = str1.trim().toLowerCase();
+      str2 = str2.trim().toLowerCase();
+
+      const longer = str1.length > str2.length ? str1 : str2;
+      const shorter = str1.length > str2.length ? str2 : str1;
+
+      const sameCharCount = shorter.split('').filter((char, i) => longer[i] === char).length;
+
+      return sameCharCount / longer.length;
+    }
+
+    if (masterData) {
+
+      const isTHValid = validEgatAddrTH.some(addr => similarity(addr, editableFields.egat_address_th) >= 0.8);
+      const isENGValid = validEgatAddrEng.some(addr => similarity(addr, editableFields.egat_address_eng) >= 0.8);
+
+      if (!isTHValid && !isENGValid) {
+        setStatusMessage('Error: EGAT address is not valid enough (need at least 80% match).');
+        setIsError(true);
+        return;
+      }
+
+      if (!validEgatTaxid.includes(editableFields.egat_tax_id)) {
+        setStatusMessage('Error: Invalid EGAT tax id.');
+        setIsError(true);
+        return;
+      }
+    }
+
     setIsProcessing(true);
     setStatusMessage('Saving changes...');
     setIsError(false);
@@ -277,11 +325,27 @@ function ScannerPage() {
     }
   }, [parsedData, editableFields, clearAllData]);
 
+  if (!masterData || !Array.isArray(masterData) || masterData.length === 0) {
+    return <p>Loading master data...</p>;
+  }
+
+  //const master = masterData[0] || {};
+  //const validEgatAddrTH = Array.isArray(master.egatAddressTH) ? master.egatAddressTH : [];
+  //const validEgatAddrEng = Array.isArray(master.egatAddressENG) ? master.egatAddressENG : [];
+  //const validEgatTaxid = Array.isArray(master.egatTaxId) ? master.egatTaxId : [];
+
+  const master = Array.isArray(masterData) && masterData.length > 0 ? masterData[0] : {};
+
+  const validEgatAddrTH = master.egatAddressTH ? [master.egatAddressTH] : [];
+  const validEgatAddrEng = master.egatAddressENG ? [master.egatAddressENG] : [];
+  const validEgatTaxid = master.egatTaxId ? [master.egatTaxId] : [];
+
   return (
     <div className="main-content-layout">
       {/* Upload Section */}
       <div className="upload-section-container card-container fade-in">
         <div className="section-title"><i className="fas fa-upload"></i> อัปโหลดใบเสร็จ</div>
+        <div>โปรดถ่ายในที่มีแสงเพียงพอ</div><br />
         <ImageUpload
           imagePreviewUrl={imagePreviewUrl}
           handleImageChange={handleImageChange}
@@ -312,6 +376,8 @@ function ScannerPage() {
               <ParsedDataDisplay
                 editableFields={editableFields}
                 handleFieldChange={handleFieldChange}
+                validEgatAddrTH={validEgatAddrTH}
+                validEgatAddrEng={validEgatAddrEng}
               />
               <SaveChangesButton
                 handleSaveChanges={handleSaveChanges}

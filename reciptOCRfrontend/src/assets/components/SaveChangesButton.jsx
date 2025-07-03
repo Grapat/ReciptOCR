@@ -4,6 +4,11 @@ import React from 'react';
 function SaveChangesButton({ handleSaveChanges, statusMessage, isError }) {
   return (
     <div>
+      <hr />
+      <h3 style={{ color: 'red' ,textAlign: 'center'}}>
+        เช็คข้อมูลให้ถูกต้องครบถ้วนก่อน save
+      </h3>
+      <hr />
       <button onClick={handleSaveChanges} className="save-button scanner-save-button">
         Save Changes
       </button>

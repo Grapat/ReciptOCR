@@ -10,7 +10,7 @@ function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isErro
   };
 
   return (
-    <>
+    <div style={{textAlign: 'center'}}>
       <div className="file-input-wrapper">
         <input
           type="file"
@@ -40,7 +40,7 @@ function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isErro
           <p className="image-preview-placeholder">รูปของคุณจะปรากฏที่นี่</p>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
