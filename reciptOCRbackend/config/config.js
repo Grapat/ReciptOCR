@@ -8,7 +8,7 @@ module.exports = {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: "postgres",
-    VITE_API_URL: "http://localhost:5000",
+    API_BASE_URL: "http://localhost:5000",
   },
   production: {
     // This tells your ORM (like Sequelize) to look for a DATABASE_URL environment variable
@@ -21,6 +21,6 @@ module.exports = {
     host: "dpg-d1jj822l19vc738o81e0-a",
     port: "5432",
     dialect: "postgres",
-    VITE_API_URL: "https://reciptocr.onrender.com",
+    API_BASE_URL: "https://reciptocr.onrender.com",
   },
 };
