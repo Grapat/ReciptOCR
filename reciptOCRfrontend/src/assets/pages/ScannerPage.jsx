@@ -39,6 +39,7 @@ function ScannerPage() {
 
   useEffect(() => {
     const fetchMasterData = async () => {
+      console.log(API)
       try {
         const response = await fetch(`${API}/api/master`);
         if (!response.ok) throw new Error('Failed to fetch master data');
