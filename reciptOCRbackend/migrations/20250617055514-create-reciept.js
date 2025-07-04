@@ -1,7 +1,9 @@
 "use strict";
+
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
+    // Create the Receipts table
     await queryInterface.createTable("Receipts", {
       id: {
         allowNull: false,
@@ -13,6 +15,9 @@ module.exports = {
         type: Sequelize.STRING,
       },
       gasName: {
+        // Note: 'gasName' is included here if it was part of the *initial* schema.
+        // It will then be removed by the 'remove-gasname-from-receipt' migration.
+        // Ensure this matches your model definition's state at the very beginning.
         type: Sequelize.STRING(50),
       },
       gasProvider: {
@@ -72,8 +77,39 @@ module.exports = {
         type: Sequelize.DATE,
       },
     });
+
+    // Create the MasterData table
+    await queryInterface.createTable("MasterData", {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER,
+      },
+      egatAddressTH: {
+        type: Sequelize.TEXT,
+      },
+      egatAddressENG: {
+        type: Sequelize.TEXT,
+      },
+      egatTaxId: {
+        type: Sequelize.STRING,
+      },
+      createdAt: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+      updatedAt: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+    });
   },
+
   async down(queryInterface, Sequelize) {
+    // Drop tables in reverse order of creation if they depend on each other
+    // In this case, they are independent.
+    await queryInterface.dropTable("MasterData");
     await queryInterface.dropTable("Receipts");
   },
 };
