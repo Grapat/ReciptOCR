@@ -5,10 +5,8 @@ import ProcessButton from '../components/ProcessButton';
 import ParsedDataDisplay from '../components/ParsedDataDisplay';
 import ExtractedTextDisplay from '../components/ExtractedTextDisplay';
 import SaveChangesButton from '../components/SaveChangesButton';
-import { API_BASE_URL } from "../../api";
+import { API } from "../../api";
 import '../../App.css';
-
-console.log(API_BASE_URL)
 
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
@@ -42,7 +40,7 @@ function ScannerPage() {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/master`);
+        const response = await fetch(`${API}/api/master`);
         if (!response.ok) throw new Error('Failed to fetch master data');
         const data = await response.json();
         setMasterData(data);
@@ -125,7 +123,7 @@ function ScannerPage() {
     formData.append('receipt_type', receiptType);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts/process-image`, {
+      const response = await fetch(`${API}/api/receipts/process-image`, {
         method: 'POST',
         body: formData,
       });
@@ -280,7 +278,7 @@ function ScannerPage() {
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptId}`, {
+      const response = await fetch(`${API}/api/receipts/${receiptId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),

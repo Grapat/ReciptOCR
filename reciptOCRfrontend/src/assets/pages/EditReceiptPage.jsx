@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from "../../api";
+import { API } from "../../api";
 import '../../App.css';
-
-console.log(API_BASE_URL)
 
 function EditReceiptPage() {
   const { id } = useParams(); // Get the receipt ID from the URL
@@ -37,7 +35,7 @@ function EditReceiptPage() {
     setStatusMessage('');
     setIsError(false);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`);
+      const response = await fetch(`${API}/api/receipts/${id}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch receipt for editing.');
@@ -134,7 +132,7 @@ function EditReceiptPage() {
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`, {
+      const response = await fetch(`${API}/api/receipts/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

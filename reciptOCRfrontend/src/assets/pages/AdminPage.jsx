@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from "../../api";
+import { API } from "../../api";
 import '../../App.css';
-console.log(API_BASE_URL)
 
 function AdminPage() {
   const [receipts, setReceipts] = useState([]);
@@ -17,7 +16,7 @@ function AdminPage() {
     setStatusMessage('');
     setIsError(false);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts`);
+      const response = await fetch(`${API}/api/receipts`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -44,7 +43,7 @@ function AdminPage() {
     setStatusMessage('Deleting receipt...');
     setIsError(false);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`, {
+      const response = await fetch(`${API}/api/receipts/${id}`, {
         method: 'DELETE',
       });
 
