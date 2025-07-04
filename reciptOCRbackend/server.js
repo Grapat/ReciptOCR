@@ -9,7 +9,7 @@ const receiptRoutes = require("./routes/receiptRoutes");
 const masterRoutes = require("./routes/masterRoutes");
 
 const app = express();
-const port = 5000; // Node.js server will run on port 5000
+const port = process.env.PORT || 5000;
 
 // Enable CORS for all routes
 app.use(cors());
@@ -44,7 +44,7 @@ db.sequelize
   .sync() // This will create tables if they don't exist (use `db:migrate` for production)
   .then(() => {
     app.listen(port, () => {
-      console.log(`Node.js server listening`);
+      console.log(`Server listening on port ${port}`);
       console.log("Database synced successfully.");
     });
   })
