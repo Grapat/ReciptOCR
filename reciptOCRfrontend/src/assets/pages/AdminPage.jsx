@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from "../../api";
 import '../../App.css';
+console.log(API_BASE_URL)
 
 function AdminPage() {
   const [receipts, setReceipts] = useState([]);

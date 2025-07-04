@@ -8,6 +8,8 @@ import SaveChangesButton from '../components/SaveChangesButton';
 import { API_BASE_URL } from "../../api";
 import '../../App.css';
 
+console.log(API_BASE_URL)
+
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);

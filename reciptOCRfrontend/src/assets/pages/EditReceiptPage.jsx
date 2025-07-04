@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from "../../api";
 import '../../App.css';
 
+console.log(API_BASE_URL)
+
 function EditReceiptPage() {
   const { id } = useParams(); // Get the receipt ID from the URL
   const navigate = useNavigate(); // Hook for navigation
