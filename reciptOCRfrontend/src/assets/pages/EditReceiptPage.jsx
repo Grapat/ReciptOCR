@@ -37,7 +37,7 @@ function EditReceiptPage() {
     setStatusMessage('');
     setIsError(false);
     try {
-      const response = await fetch(`http://localhost:5000/api/receipts/${id}`);
+      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch receipt for editing.');
@@ -134,7 +134,7 @@ function EditReceiptPage() {
     });
 
     try {
-      const response = await fetch(`http://localhost:5000/api/receipts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

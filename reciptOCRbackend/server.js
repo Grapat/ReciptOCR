@@ -44,7 +44,7 @@ db.sequelize
   .sync() // This will create tables if they don't exist (use `db:migrate` for production)
   .then(() => {
     app.listen(port, () => {
-      console.log(`Node.js server listening at http://localhost:${port}`);
+      console.log(`Node.js server listening`);
       console.log("Database synced successfully.");
     });
   })

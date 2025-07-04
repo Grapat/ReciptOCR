@@ -17,7 +17,7 @@ function AdminPage() {
     setStatusMessage('');
     setIsError(false);
     try {
-      const response = await fetch('http://localhost:5000/api/receipts');
+      const response = await fetch(`${API_BASE_URL}/api/receipts`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -44,7 +44,7 @@ function AdminPage() {
     setStatusMessage('Deleting receipt...');
     setIsError(false);
     try {
-      const response = await fetch(`http://localhost:5000/api/receipts/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/receipts/${id}`, {
         method: 'DELETE',
       });
 

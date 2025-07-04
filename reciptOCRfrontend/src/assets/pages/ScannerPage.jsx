@@ -40,7 +40,7 @@ function ScannerPage() {
   useEffect(() => {
     const fetchMasterData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/master');
+        const response = await fetch(`${API_BASE_URL}/api/master`);
         if (!response.ok) throw new Error('Failed to fetch master data');
         const data = await response.json();
         setMasterData(data);
@@ -123,7 +123,7 @@ function ScannerPage() {
     formData.append('receipt_type', receiptType);
 
     try {
-      const response = await fetch('http://localhost:5000/api/receipts/process-image', {
+      const response = await fetch(`${API_BASE_URL}/api/receipts/process-image`, {
         method: 'POST',
         body: formData,
       });
@@ -278,7 +278,7 @@ function ScannerPage() {
     });
 
     try {
-      const response = await fetch(`http://localhost:5000/api/receipts/${receiptId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
