@@ -1,7 +1,7 @@
 // App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import './app.css';
+import './App.css';
 
 import NavigationBar from './assets/components/NavigationBar';
 import ScannerPage from './assets/pages/ScannerPage';
