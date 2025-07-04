@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from "../../api";
 import '../../App.css';
 
 function EditReceiptPage() {
   const { id } = useParams(); // Get the receipt ID from the URL
   const navigate = useNavigate(); // Hook for navigation
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
-
   const [editedFields, setEditedFields] = useState({
     merchantName: '',
     transactionDate: '',
@@ -29,8 +28,6 @@ function EditReceiptPage() {
     egatTaxId: '',
     receiptType: ''
   });
-
-  const API_BASE_URL = import.meta.env.VITE_API_URL
   // Function to fetch the specific receipt data
   const fetchReceiptData = useCallback(async () => {
     setLoading(true);

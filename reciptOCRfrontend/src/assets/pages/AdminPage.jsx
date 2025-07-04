@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from "../../api";
 import '../../App.css';
 
 function AdminPage() {
@@ -9,7 +10,6 @@ function AdminPage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_URL
   const fetchAllReceipts = useCallback(async () => {
     setLoading(true);
     setError(null);

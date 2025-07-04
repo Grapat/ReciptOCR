@@ -5,6 +5,7 @@ import ProcessButton from '../components/ProcessButton';
 import ParsedDataDisplay from '../components/ParsedDataDisplay';
 import ExtractedTextDisplay from '../components/ExtractedTextDisplay';
 import SaveChangesButton from '../components/SaveChangesButton';
+import { API_BASE_URL } from "../../api";
 import '../../App.css';
 
 function ScannerPage() {
@@ -35,7 +36,6 @@ function ScannerPage() {
   });
   const [receiptType, setReceiptType] = useState('generic');
   const fileInputRef = useRef(null);
-  const API_BASE_URL = import.meta.env.VITE_API_URL
 
   useEffect(() => {
     const fetchMasterData = async () => {
