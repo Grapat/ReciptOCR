@@ -34,8 +34,8 @@ function ScannerPage() {
     egat_tax_id: ''
   });
   const [receiptType, setReceiptType] = useState('generic');
-
   const fileInputRef = useRef(null);
+  const API_BASE_URL = import.meta.env.VITE_API_URL
 
   useEffect(() => {
     const fetchMasterData = async () => {

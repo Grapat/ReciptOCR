@@ -30,6 +30,7 @@ function EditReceiptPage() {
     receiptType: ''
   });
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL
   // Function to fetch the specific receipt data
   const fetchReceiptData = useCallback(async () => {
     setLoading(true);

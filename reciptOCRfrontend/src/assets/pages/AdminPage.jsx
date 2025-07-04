@@ -8,9 +8,8 @@ function AdminPage() {
   const [error, setError] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
-
   const navigate = useNavigate();
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL
   const fetchAllReceipts = useCallback(async () => {
     setLoading(true);
     setError(null);
