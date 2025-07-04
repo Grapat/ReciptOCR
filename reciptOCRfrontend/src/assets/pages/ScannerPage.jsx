@@ -5,7 +5,7 @@ import ProcessButton from '../components/ProcessButton';
 import ParsedDataDisplay from '../components/ParsedDataDisplay';
 import ExtractedTextDisplay from '../components/ExtractedTextDisplay';
 import SaveChangesButton from '../components/SaveChangesButton';
-import '../../app.css';
+import '../../App.css';
 
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);

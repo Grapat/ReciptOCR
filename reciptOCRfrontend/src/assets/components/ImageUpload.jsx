@@ -1,7 +1,7 @@
 // components/ImageUpload.jsx
 import React, { useRef, useState } from 'react';
 import ImageCropper from './ImageCropper'; // Make sure path is correct
-import '../../app.css';
+import '../../App.css';
 
 function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isError, setSelectedFile, setImagePreviewUrl }) {
   const fileInputRef = useRef(null);

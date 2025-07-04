@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import '../../app.css';
+import '../../App.css';
 
 function EditReceiptPage() {
   const { id } = useParams(); // Get the receipt ID from the URL

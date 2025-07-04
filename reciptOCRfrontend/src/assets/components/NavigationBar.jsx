@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom'; // Import useLocation to determine active link
-import '../../app.css'; // Assuming app.css contains styles for nav-button
+import '../../App.css'; // Assuming app.css contains styles for nav-button
 
 function NavigationBar() {
   const location = useLocation(); // Get the current location object
