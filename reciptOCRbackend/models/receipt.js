@@ -14,7 +14,7 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
       },
       merchantName: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT, // Changed from DataTypes.STRING to DataTypes.TEXT
         allowNull: true, // Allow null if OCR might fail
       },
       gasProvider: {

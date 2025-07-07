@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import ImageCropper from '../components/ImageCropper'; // Correct path to ImageCropper
 import ReceiptTypeSelect from '../components/ReceiptTypeSelect';
 import ImageUpload from '../components/ImageUpload';
 import ProcessButton from '../components/ProcessButton';
@@ -8,9 +9,10 @@ import SaveChangesButton from '../components/SaveChangesButton';
 import { API } from "../../api";
 import '../../App.css';
 
+
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null); // This will hold the original or cropped file
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,11 +37,15 @@ function ScannerPage() {
     egat_tax_id: ''
   });
   const [receiptType, setReceiptType] = useState('generic');
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef(null); // This ref is for the file input that ImageUpload uses internally.
+
+  // State for controlling the cropper visibility and image source for cropping
+  const [imageToCrop, setImageToCrop] = useState(null); // Stores the URL of the image to be cropped
+  const [showCropper, setShowCropper] = useState(false); // Controls visibility of ImageCropper
+
 
   useEffect(() => {
     const fetchMasterData = async () => {
-      console.log(API)
       try {
         const response = await fetch(`${API}/api/master`);
         if (!response.ok) throw new Error('Failed to fetch master data');
@@ -79,14 +85,19 @@ function ScannerPage() {
       egat_tax_id: ''
     });
     setReceiptType('generic');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    // We should clear the file input value if using a ref directly here
+    // If ImageUpload manages its own ref, it might need a prop to reset
+    // For now, assuming clearAllData implies a full reset that covers file input too.
+    // If fileInputRef is actually in ImageUpload, we can't directly reset it here.
+    // The handleImageChange will implicitly reset it by setting files[0] to null
+    // when clearAllData is called via the ImageUpload's internal mechanism.
+    setImageToCrop(null); // Clear image to crop
+    setShowCropper(false); // Hide cropper
   }, []);
 
   const handleImageChange = useCallback((event) => {
     const file = event.target.files[0];
-    clearAllData();
+    clearAllData(); // Clear previous data first
 
     if (file) {
       if (!file.type.startsWith('image/')) {
@@ -94,9 +105,9 @@ function ScannerPage() {
         setIsError(true);
         return;
       }
-      setSelectedFile(file);
-      setImagePreviewUrl(URL.createObjectURL(file));
-      setStatusMessage(`Selected file: ${file.name}`);
+      setSelectedFile(file); // Set the original file
+      setImagePreviewUrl(URL.createObjectURL(file)); // Show preview of original file
+      setStatusMessage(`Selected file: ${file.name}.`);
       setIsError(false);
     } else {
       setStatusMessage('No file selected.');
@@ -107,6 +118,42 @@ function ScannerPage() {
   const handleReceiptTypeChange = useCallback((event) => {
     setReceiptType(event.target.value);
   }, []);
+
+  // Function to trigger the cropper
+  const handleCropButtonClick = useCallback(() => {
+    if (selectedFile) {
+      setImageToCrop(URL.createObjectURL(selectedFile)); // Use the selected file to start cropping
+      setShowCropper(true);
+      setStatusMessage('Please crop your image.');
+      setIsError(false);
+    } else {
+      setStatusMessage('No image selected to crop.');
+      setIsError(true);
+    }
+  }, [selectedFile]);
+
+
+  // Callback for when cropping is done
+  const onCropDone = useCallback((croppedBlob) => {
+    // Create a new File object from the blob, using the original file's name and type for consistency
+    const croppedFile = new File([croppedBlob], selectedFile.name || 'cropped_image.png', { type: croppedBlob.type });
+    setSelectedFile(croppedFile); // Update selectedFile to the cropped version
+    setImagePreviewUrl(URL.createObjectURL(croppedBlob)); // Update preview to cropped image
+    setShowCropper(false); // Hide the cropper
+    setImageToCrop(null); // Clear the image to crop
+    setStatusMessage(`Image cropped successfully.`);
+    setIsError(false); // Clear any error state related to cropping
+  }, [selectedFile]); // Depend on selectedFile to ensure we use its name if available
+
+  // Callback for when cropping is cancelled
+  const onCropCancel = useCallback(() => {
+    setShowCropper(false); // Hide the cropper
+    setImageToCrop(null); // Clear the image to crop, but keep original selectedFile and preview
+    setStatusMessage('Image cropping cancelled. Using original image.');
+    // Do not clear selectedFile or imagePreviewUrl here, keep the original image for processing
+    setIsError(false); // Clear error for cropping, but don't mark as success
+  }, []);
+
 
   const handleProcessReceipt = useCallback(async () => {
     if (!selectedFile) {
@@ -221,6 +268,11 @@ function ScannerPage() {
 
     if (masterData) {
 
+      const master = Array.isArray(masterData) && masterData.length > 0 ? masterData[0] : {};
+      const validEgatAddrTH = master.egatAddressTH ? [master.egatAddressTH] : [];
+      const validEgatAddrEng = master.egatAddressENG ? [master.egatAddressENG] : [];
+      const validEgatTaxid = master.egatTaxId ? [master.egatTaxId] : [];
+
       const isTHValid = validEgatAddrTH.some(addr => similarity(addr, editableFields.egat_address_th) >= 0.8);
       const isENGValid = validEgatAddrEng.some(addr => similarity(addr, editableFields.egat_address_eng) >= 0.8);
 
@@ -315,7 +367,7 @@ function ScannerPage() {
       };
       setParsedData(updatedMappedData);
       setEditableFields(updatedMappedData);
-      clearAllData();
+      clearAllData(); // Clear form after successful save and prepare for new upload
 
     } catch (error) {
       console.error("Error during saving changes:", error);
@@ -330,11 +382,6 @@ function ScannerPage() {
     return <p>Loading master data...</p>;
   }
 
-  //const master = masterData[0] || {};
-  //const validEgatAddrTH = Array.isArray(master.egatAddressTH) ? master.egatAddressTH : [];
-  //const validEgatAddrEng = Array.isArray(master.egatAddressENG) ? master.egatAddressENG : [];
-  //const validEgatTaxid = Array.isArray(master.egatTaxId) ? master.egatTaxId : [];
-
   const master = Array.isArray(masterData) && masterData.length > 0 ? masterData[0] : {};
 
   const validEgatAddrTH = master.egatAddressTH ? [master.egatAddressTH] : [];
@@ -343,69 +390,91 @@ function ScannerPage() {
 
   return (
     <div className="main-content-layout">
-      {/* Upload Section */}
-      <div className="upload-section-container card-container fade-in">
-        <div className="section-title"><i className="fas fa-upload"></i> อัปโหลดใบเสร็จ</div>
-        <div>โปรดถ่ายในที่มีแสงเพียงพอ</div><br />
-        <ImageUpload
-          imagePreviewUrl={imagePreviewUrl}
-          handleImageChange={handleImageChange}
-          statusMessage={statusMessage}
-          isError={isError}
-          setSelectedFile={setSelectedFile}       // ✅ add this
-          setImagePreviewUrl={setImagePreviewUrl} // ✅ add this
+      {/* Conditionally render ImageCropper if showCropper is true and imageToCrop is set */}
+      {showCropper && imageToCrop && (
+        <ImageCropper
+          imageSrc={imageToCrop} // Pass the image URL for cropping
+          onCropDone={onCropDone} // Callback for when cropping is complete
+          onCancel={onCropCancel} // Callback for when cropping is cancelled
         />
-        <br />
-        <ReceiptTypeSelect
-          receiptType={receiptType}
-          handleReceiptTypeChange={handleReceiptTypeChange}
-        />
-        <br />
-        <ProcessButton
-          handleProcessReceipt={handleProcessReceipt}
-          selectedFile={selectedFile}
-          isProcessing={isProcessing}
-          statusMessage={statusMessage}
-          isError={isError}
-        />
-      </div>
+      )}
 
-      {/* Right Column: Form + Raw Text */}
-      <div className="right-content-column">
-        <div className="form-section-container card-container fade-in">
-          <div className="section-title"><i className="fas fa-edit"></i> แก้ไขข้อมูลที่ตรวจจับได้</div>
-          {parsedData ? (
-            <>
-              <ParsedDataDisplay
-                editableFields={editableFields}
-                handleFieldChange={handleFieldChange}
-                validEgatAddrTH={validEgatAddrTH}
-                validEgatAddrEng={validEgatAddrEng}
-              />
-              <SaveChangesButton
-                handleSaveChanges={handleSaveChanges}
-                statusMessage={statusMessage}
-                isError={isError}
-              />
-            </>
-          ) : (
-            <div className="placeholder-box top">
-              <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
-            </div>
-          )}
-        </div>
+      {/* Only show the main content if the cropper is NOT active */}
+      {!showCropper && (
+        <>
+          {/* Upload Section */}
+          <div className="upload-section-container card-container fade-in">
+            <div className="section-title"><i className="fas fa-upload"></i> อัปโหลดใบเสร็จ</div>
+            <div>โปรดถ่ายในที่มีแสงเพียงพอ</div><br />
+            <ImageUpload
+              imagePreviewUrl={imagePreviewUrl}
+              handleImageChange={handleImageChange}
+              statusMessage={statusMessage}
+              isError={isError}
+            // Removed setSelectedFile and setImagePreviewUrl props as ImageUpload no longer needs them
+            />
+            {imagePreviewUrl && ( // Show "Crop Image" button only if an image is selected
+              <button
+                onClick={handleCropButtonClick}
+                className="crop-button" // You can add a specific class for styling this button
+                style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
+              >
+                ✂️ Crop Image
+              </button>
+            )}
+            <br />
+            <ReceiptTypeSelect
+              receiptType={receiptType}
+              handleReceiptTypeChange={handleReceiptTypeChange}
+            />
+            <br />
+            <ProcessButton
+              handleProcessReceipt={handleProcessReceipt}
+              selectedFile={selectedFile}
+              isProcessing={isProcessing}
+              statusMessage={statusMessage}
+              isError={isError}
+            />
+          </div>
 
-        <div className="raw-output-section-container card-container fade-in">
-          <div className="section-title"><i className="fas fa-file-alt"></i> ข้อความดิบ (Raw OCR)</div>
-          {extractedText ? (
-            <ExtractedTextDisplay extractedText={extractedText} />
-          ) : (
-            <div className="placeholder-box bottom">
-              <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
+          {/* Right Column: Form + Raw Text */}
+          <div className="right-content-column">
+            <div className="form-section-container card-container fade-in">
+              <div className="section-title"><i className="fas fa-edit"></i> แก้ไขข้อมูลที่ตรวจจับได้</div>
+              {parsedData ? (
+                <>
+                  <ParsedDataDisplay
+                    editableFields={editableFields}
+                    handleFieldChange={handleFieldChange}
+                    validEgatAddrTH={validEgatAddrTH}
+                    validEgatAddrEng={validEgatAddrEng}
+                  />
+                  <SaveChangesButton
+                    handleSaveChanges={handleSaveChanges}
+                    statusMessage={statusMessage}
+                    isError={isError}
+                  />
+                </>
+              ) : (
+                <div className="placeholder-box top">
+                  <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+
+            <div className="raw-output-section-container card-container fade-in">
+              <div className="section-title"><i className="fas fa-file-alt"></i> ข้อความดิบ (Raw OCR)</div>
+              {extractedText ? (
+                <ExtractedTextDisplay extractedText={extractedText} />
+              ) : (
+                <div className="placeholder-box bottom">
+                  <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

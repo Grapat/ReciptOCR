@@ -1,35 +1,13 @@
 // components/ImageUpload.jsx
-import React, { useRef, useState } from 'react';
-import ImageCropper from './ImageCropper'; // Make sure path is correct
+import React, { useRef } from 'react';
 import '../../App.css';
 
-function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isError, setSelectedFile, setImagePreviewUrl }) {
+function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isError }) {
   const fileInputRef = useRef(null);
 
-  const [tempImageUrl, setTempImageUrl] = useState(null);
-  const [showCropper, setShowCropper] = useState(false);
-
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const previewUrl = URL.createObjectURL(file);
-      setTempImageUrl(previewUrl); // Show in cropper
-      setShowCropper(true);        // Show cropping UI
-    }
-  };
-
-  const handleCropDone = (croppedBlob) => {
-    const croppedFile = new File([croppedBlob], 'cropped.jpg', { type: 'image/jpeg' });
-    setSelectedFile(croppedFile); // Replace file with cropped
-    const croppedUrl = URL.createObjectURL(croppedBlob);
-    setImagePreviewUrl(croppedUrl);
-    handleImageChange({ target: { files: [croppedFile] } }); // Trigger OCR
-    setShowCropper(false);
-  };
-
-  const handleCropCancel = () => {
-    setTempImageUrl(null);
-    setShowCropper(false);
+    // This now just calls the handleImageChange prop from ScannerPage
+    handleImageChange(event);
   };
 
   const handleButtonClick = () => {
@@ -68,15 +46,6 @@ function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isErro
           <p className="image-preview-placeholder">รูปของคุณจะปรากฏที่นี่</p>
         )}
       </div>
-
-      {/* Show cropper if needed */}
-      {showCropper && tempImageUrl && (
-        <ImageCropper
-          imageSrc={tempImageUrl}
-          onCropDone={handleCropDone}
-          onCancel={handleCropCancel}
-        />
-      )}
     </div>
   );
 }

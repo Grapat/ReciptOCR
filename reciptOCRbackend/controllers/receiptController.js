@@ -37,7 +37,7 @@ exports.processReceipt = async (req, res) => {
   const pythonProcess = spawn("python", [
     ocrProcessorPath,
     receiptType,
-    filename, // Make sure filename is passed to Python
+    filename,
   ]);
 
   let pythonOutput = "";

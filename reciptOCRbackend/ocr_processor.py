@@ -5,7 +5,6 @@ import io
 import pytesseract
 import re
 import cv2
-# Still needed for initial image_pil to np.array if extract_data expects it
 import numpy as np
 import json
 from datetime import datetime
@@ -15,9 +14,12 @@ import importlib
 OCR_LANGUAGES = 'eng+tha'
 
 # Folder to save processed/debug images
-PROCESSED_UPLOAD_FOLDER = os.path.join(
-    os.path.dirname(__file__), '../processed_uploads')
-os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
+# PROCESSED_UPLOAD_FOLDER is no longer needed if no debug images are saved.
+# If other processed files are saved, keep this and the os.makedirs.
+# For this specific request, we will remove it.
+# PROCESSED_UPLOAD_FOLDER = os.path.join(
+#     os.path.dirname(__file__), '../processed_uploads')
+# os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
 
 
 # Added original_filename arg
@@ -42,8 +44,7 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
         "egat_tax_id": "N/A",
     }
 
-    # Initialize debug_image_cv2 and parsed_data here with their default values
-    debug_image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+    # Initialize parsed_data here with its default values
     parsed_data = initial_result.copy()
 
     # Try to dynamically load the specific extractor module
@@ -66,8 +67,8 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
 
     # Call the combined extraction function from the loaded extractor module ONLY if it exists
     if extractor_module:
-        # Pass the original PIL image to the extractor
-        parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching = \
+        # The extractor_module.extract_data no longer returns debug_image_cv2
+        parsed_data, cleaned_extracted_text_for_matching = \
             extractor_module.extract_data(
                 image_pil, original_filename, initial_result)  # Pass original_filename
     else:
@@ -88,8 +89,6 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
             processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, config=tesseract_config)
         cleaned_extracted_text_for_matching = raw_ocr_text_fallback.replace(
             ' ', '').lower()
-        # parsed_data remains initial_result.copy()
-        # debug_image_cv2 remains as the initial conversion
         sys.stderr.write(
             "Falling back to generic OCR with basic processing.\n")
 
@@ -98,7 +97,8 @@ def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unkn
         if parsed_data[field] == "N/A":
             parsed_data[field] = None
 
-    return parsed_data, debug_image_cv2, cleaned_extracted_text_for_matching
+    # No debug_image_cv2 returned here
+    return parsed_data, cleaned_extracted_text_for_matching
 
 
 # --- Main script execution ---
@@ -116,22 +116,19 @@ if __name__ == '__main__':
         image_bytes = sys.stdin.buffer.read()
         original_image_pil = Image.open(io.BytesIO(image_bytes))
 
-        # Perform dynamic OCR parsing and get the parsed data, debug image, AND the globally cleaned extracted text
-        # Pass original_filename here
-        parsed_data, debug_image_cv2, extracted_text = dynamic_parse_ocr(
+        # Perform dynamic OCR parsing and get the parsed data AND the globally cleaned extracted text
+        # debug_image_cv2 is no longer returned
+        parsed_data, extracted_text = dynamic_parse_ocr(
             original_image_pil, receipt_type, original_filename)
 
-        # Save the debug image with bounding boxes
-        debug_image_path = os.path.join(
-            PROCESSED_UPLOAD_FOLDER, f'debug_dynamic_{receipt_type}_{original_filename}')
-        cv2.imwrite(debug_image_path, debug_image_cv2)
+        # No debug image saving needed
 
         # Prepare the final result dictionary to be sent back to Node.js as JSON
         result = {
             'message': 'Image processed dynamically!',
             'extracted_text': extracted_text,
             'parsed_data': parsed_data,
-            'debug_image_url': f'/processed_uploads/debug_dynamic_{receipt_type}_{original_filename}',
+            # 'debug_image_url': f'/processed_uploads/debug_dynamic_{receipt_type}_{original_filename}', # No debug image URL
             'status': 'complete'
         }
         # Print the JSON result to stdout, which Node.js will capture

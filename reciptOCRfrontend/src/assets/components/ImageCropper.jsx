@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '../utils/cropImage'; // Make sure this exists and returns a blob
+import '../css/ImageCropper.css';
 
 const cropContainerStyle = {
     position: 'fixed',
