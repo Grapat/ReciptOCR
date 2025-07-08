@@ -7,12 +7,12 @@ import ParsedDataDisplay from '../components/ParsedDataDisplay';
 import ExtractedTextDisplay from '../components/ExtractedTextDisplay';
 import SaveChangesButton from '../components/SaveChangesButton';
 import { API } from "../../api";
-import '../../App.css';
+import '../css/ScannerPage.css';
 
 
 function ScannerPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null); // This will hold the original or cropped file
+  const [selectedFile, setSelectedFile] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -221,7 +221,7 @@ function ScannerPage() {
 
   const handleFieldChange = useCallback((e) => {
     const { name, value } = e.target;
-    setEditableFields(prevFields => ({
+    setEditableFields((prevFields) => ({
       ...prevFields,
       [name]: value,
     }));
@@ -389,37 +389,27 @@ function ScannerPage() {
   const validEgatTaxid = master.egatTaxId ? [master.egatTaxId] : [];
 
   return (
-    <div className="main-content-layout">
-      {/* Conditionally render ImageCropper if showCropper is true and imageToCrop is set */}
-      {showCropper && imageToCrop && (
+    <div className="main-content-layout scanner-flex-layout">
+      {showCropper && imageToCrop ? (
         <ImageCropper
-          imageSrc={imageToCrop} // Pass the image URL for cropping
-          onCropDone={onCropDone} // Callback for when cropping is complete
-          onCancel={onCropCancel} // Callback for when cropping is cancelled
+          imageSrc={imageToCrop}
+          onCropDone={onCropDone}
+          onCancel={onCropCancel}
         />
-      )}
-
-      {/* Only show the main content if the cropper is NOT active */}
-      {!showCropper && (
+      ) : (
         <>
-          {/* Upload Section */}
-          <div className="upload-section-container card-container fade-in">
-            <div className="section-title"><i className="fas fa-upload"></i> อัปโหลดใบเสร็จ</div>
-            <div>โปรดถ่ายในที่มีแสงเพียงพอ</div><br />
+          {/* Left Side - Upload */}
+          <div className="left-panel card-container fade-in">
+            <div className="section-title"><i className="fas fa-upload"></i> Upload</div>
             <ImageUpload
               imagePreviewUrl={imagePreviewUrl}
               handleImageChange={handleImageChange}
               statusMessage={statusMessage}
               isError={isError}
-            // Removed setSelectedFile and setImagePreviewUrl props as ImageUpload no longer needs them
             />
-            {imagePreviewUrl && ( // Show "Crop Image" button only if an image is selected
-              <button
-                onClick={handleCropButtonClick}
-                className="crop-button" // You can add a specific class for styling this button
-                style={{ marginTop: '10px', padding: '10px 20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}
-              >
-                ✂️ Crop Image
+            {imagePreviewUrl && (
+              <button onClick={handleCropButtonClick} className="crop-button">
+                Crop Image
               </button>
             )}
             <br />
@@ -437,10 +427,10 @@ function ScannerPage() {
             />
           </div>
 
-          {/* Right Column: Form + Raw Text */}
-          <div className="right-content-column">
+          {/* Right Side - Form + Raw Extract */}
+          <div className="right-panel">
             <div className="form-section-container card-container fade-in">
-              <div className="section-title"><i className="fas fa-edit"></i> แก้ไขข้อมูลที่ตรวจจับได้</div>
+              <div className="section-title">form</div>
               {parsedData ? (
                 <>
                   <ParsedDataDisplay
@@ -463,7 +453,7 @@ function ScannerPage() {
             </div>
 
             <div className="raw-output-section-container card-container fade-in">
-              <div className="section-title"><i className="fas fa-file-alt"></i> ข้อความดิบ (Raw OCR)</div>
+              <div className="section-title">Raw extract</div>
               {extractedText ? (
                 <ExtractedTextDisplay extractedText={extractedText} />
               ) : (

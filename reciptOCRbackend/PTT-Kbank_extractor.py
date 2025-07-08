@@ -123,37 +123,68 @@ def extract_data(image_pil, original_filename, initial_result):
     cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
 
     global_regex_patterns = {
-        "date": r"(?:วันที่พิมพ์|มือจ่าย|วันที่ขาย)\s*(\d{1,2}/\d{1,2}/\d{4})",
-        "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
-        "egat_address_eng": r"((?:electricitygenerating).*?\s.*?1130)",
-        "egat_tax_id": r"(099\d{10,15})",
-        "gas_tax_id": r'(?:เสียภาษี)[:\s]*(\d{10,15})',
-        "merchant_name": r"(บริษัท.*?กัด)|(ห้างหุ้น.*?กัด)",
-        "total_amount": r"fleet.*?:(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2})",
-        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
-        "gas_address": r"(?:ที่อยู่|address)[:\s]*(?P<captured_text>.*?\b\d{5}\b)",
-        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(?P<plate_no>(?:[ก-ฮ]{1,2}|[1-9])(?:[ก-ฮ]{1,2}|\d{1,4}){1,2})',
-        "milestone": r'(?:เลขไมล์|ไมล์)[:\s]*(.{6})',
-        "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
-        "liters": r"(?:ราคา/หน่วยปริมาณ|unitprice)[:\s]*(\d+\.\d{2})",
+        # Adjusted to match "22/03/2567" and similar date formats
+        "date": r"(?:DATE|Date|วันที่พิมพ์|มือจ่าย|วันที่ขาย|วันที่|วัน)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})",
+        # Specific EGAT address with "AUTHORITY OF THAI" and postcode
+        # Capture from Authority to 1130
+        "egat_address_th": r"(?:ที่อยู่)?\s*(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.)?\s*.*?(?:AUTHORITY\s*OF\s*THAI.*?\b1130\b)",
+        # Capture from electricity to 1130
+        "egat_address_eng": r"(?:electricity\s*generating\s*authority\s*of\s*thai.*?\b1130\b)",
+        # EGAT tax ID with 099 prefix
+        # Specific 099 regex
+        "egat_tax_id": r"(?:TAX\s*ID|TAX\s*ID)[:\s]*(099\d{9,12})",
+        # Gas tax ID; generic 10-15 digits after keywords
+        "gas_tax_id": r'(?:เสียภาษี|TAX\s*ID|เลขประจำตัวผู้เสียภาษี)[:\s]*(\d{10,15})',
+        # More robust merchant name capture for Bangchak and generic company names
+        "merchant_name": r"(?:บริษัท\s*บางจาก\s*คอร์ปอเรชั่น\s*จำกัด\s*\(มหาชน\)|BANGCHAK\s*GROUP\s*NET\s*CO\.,?LTD\.)|(?:บริษัท.*?จำกัด)|(?:ห้างหุ้นส่วนจำกัด)|(?:bangchak)",
+        # Total amount, adjusted to capture after "TOTAL THB", "AMOUNT THB", or "fleet"
+        "total_amount": r"(?:TOTAL\s*THB|AMOUNT\s*THB|TOTAL|SALE|fleet).*?[:\s]*(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2})",
+        # Gas type; added 'S' for 'HI DIESEL S' from the image
+        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI\s*DIESEL\s*S|HI\s*DIESEL|ดีเซล|เบนซิน)",
+        # Gas address; made the postcode capture more flexible
+        "gas_address": r"(?:HEAD\s*OFFICE|ที่อยู่|address)[:\s]*(?P<captured_text>.*?\b\d{5}\b)",
+        # Plate number regex; adjusted to handle Thai characters and numbers with spaces
+        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(?P<plate_no>(?:[ก-ฮ]{1,2}|[1-9])(?:\s*[ก-ฮ]{1,2})?\s*\d{1,4})',
+        # Milestone with optional leading zeros and various keywords
+        # Capture 6-8 digits
+        "milestone": r'(?:เลขระยะทาง|เลขไมล์|ไมล์|KM)[:\s]*(\d{6,8})',
+        # Receipt number; made more flexible for different lengths and prefixes found (e.g., TID, ID)
+        # Added ID, TID, MID
+        "receipt_no": r"(?:เลขที่|เลขที่ใบกํากับภาษี|ID|TID|MID)[\s:#(]*([A-Z0-9\-/]{5,20}|\d{6,18})",
+        # Liters; added "LITER" as seen in the image, and a more robust capture for numbers with decimals
+        "liters": r"(?:LITER|liters|litre|ลิตร)[:\s]*(\d+\.\d{2})",
+        # VAT; added specific regex for VAT amount
+        "VAT": r"(?:VAT)[:\s]*(\d+\.\d{2})",  # Specific regex for VAT
     }
 
     keyword_mappings = {
-        "total_amount": ["เป็นเงิน"],
-        "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
-        "receipt_no": ["เลขที่", "เลขใบกำกับภาษี"],
-        "liters": ["ลิตร", "liters", "litre", "l"],
+        # Added "TOTAL", "SALE", "AMOUNT"
+        "total_amount": ["เป็นเงิน", "TOTAL", "SALE", "AMOUNT"],
+        # Added "วัน"
+        "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย", "วัน"],
+        # Added "ID", "TID", "MID"
+        "receipt_no": ["เลขที่", "เลขใบกำกับภาษี", "ID", "TID", "MID"],
+        "liters": ["ลิตร", "liters", "litre", "l", "LITER"],  # Added "LITER"
         "plate_no": ["ทะเบียนรถ", "เบียนรถ"],
-        "milestone": ["ระยะ", "km", "กม", "เลขไมล์"],
+        # Added "เลขระยะทาง"
+        "milestone": ["ระยะ", "km", "กม", "เลขไมล์", "ไมล์", "เลขระยะทาง"],
         "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
-        "gas_address": ["ที่อยู่", "อยู่"],
-        "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
-        "merchant_name": ["บริษัท", "จำกัด"],
-        "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
-        "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
-        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid", "099"],
-        "gas_provider": ["ptt"],
-        "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี"],
+        # Added "HEAD OFFICE"
+        "gas_address": ["ที่อยู่", "address", "HEAD OFFICE"],
+        # Added "hi diesel s"
+        "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel", "hi diesel s"],
+        # Added "krungthai"
+        "merchant_name": ["บริษัท", "จำกัด", "บางจาก", "bangchak", "krungthai"],
+        # Included English phrase as it appears in Thai receipt
+        "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ.", "electricity generating authority of thai"],
+        # Added "thai"
+        "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat", "thai"],
+        # Added "TAX ID"
+        "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid", "099", "TAX ID"],
+        # Added "Krungthai"
+        "gas_provider": ["ptt", "บางจาก", "bangchak", "Krungthai"],
+        # Added "TAX ID"
+        "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี", "TAX ID"],
     }
 
     fields_to_extract_order = [

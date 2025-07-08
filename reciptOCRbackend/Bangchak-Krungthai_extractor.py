@@ -100,14 +100,14 @@ def extract_data(image_pil, original_filename, initial_result):
     result = {field: (initial_result[field] if initial_result[field]
                       != "N/A" else None) for field in initial_result.keys()}
 
-    result["receipt_type_used"] = "A5"
+    result["receipt_type_used"] = "Bangchak-Kbank"
 
     img_np = np.array(image_pil)
     img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
     img_denoised = cv2.medianBlur(img_cv_gray, 1)
     img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
                                        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY, 31, 10)
+                                       cv2.THRESH_BINARY, 21, 10)
 
     processed_image_for_ocr = Image.fromarray(img_thresh)
 
@@ -123,37 +123,50 @@ def extract_data(image_pil, original_filename, initial_result):
     cleaned_extracted_text_for_matching = raw_ocr_text.replace(' ', '').lower()
 
     global_regex_patterns = {
-        "date": r"(?:วันที่พิมพ์|มือจ่าย|วันที่ขาย)\s*(\d{1,2}/\d{1,2}/\d{4})",
+        # Adjusted for various separators and 4-digit year
+        "date": r"(?:DATE|Date|วันที่พิมพ์|มือจ่าย|วันที่ขาย|วันที่)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})",
         "egat_address_th": r"(ที่อยู่(?:การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย|กฟผ|กฟผ\.).*?\s.*?1130)",
         "egat_address_eng": r"((?:electricitygenerating).*?\s.*?1130)",
         "egat_tax_id": r"(099\d{10,15})",
-        "gas_tax_id": r'(?:เสียภาษี)[:\s]*(\d{10,15})',
-        "merchant_name": r"(บริษัท.*?กัด)|(ห้างหุ้น.*?กัด)",
-        "total_amount": r"fleet.*?:(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2})",
-        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI DIESEL)",
-        "gas_address": r"(?:ที่อยู่|address)[:\s]*(?P<captured_text>.*?\b\d{5}\b)",
-        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(?P<plate_no>(?:[ก-ฮ]{1,2}|[1-9])(?:[ก-ฮ]{1,2}|\d{1,4}){1,2})',
-        "milestone": r'(?:เลขไมล์|ไมล์)[:\s]*(.{6})',
-        "receipt_no": r"(?:เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{18}|\d{18}|\d{6}|[A-Z0-9\-/]{5,20})",
-        "liters": r"(?:ราคา/หน่วยปริมาณ|unitprice)[:\s]*(\d+\.\d{2})",
+        # Added เลขประจำตัวผู้เสียภาษี
+        "gas_tax_id": r'(?:เสียภาษี|เลขประจำตัวผู้เสียภาษี)[:\s]*(\d{10,15})',
+        # More specific for Bangchak, also keeping generic
+        "merchant_name": r"(บริษัท\s*บางจาก\s*คอร์ปอเรชั่น\s*จำกัด\s*\(มหาชน\)|(?:บริษัท|ห้างหุ้นส่วนจำกัด).*?จำกัด)|(?:bangchak.*?co\.?,?\s*ltd\.)|(?:bangchak)",
+        # Added "รวมเป็นเงิน"
+        "total_amount": r"(?:รวมเป็นเงิน|TOTAL|SALE)\s*(?:THB)?[:\s]*(?P<money_amount>\d{1,3}(?:,\d{3})*\.\d{2})",
+        # Added Thai gas types and space in HI DIESEL
+        "gas_type": r"(DIESEL|E20|E85|GASOHOL|HI\s*DIESEL|ดีเซล|เบนซิน)",
+        # More flexible for "captured_text" before postcode
+        "gas_address": r"(?:ที่อยู่|address)[:\s]*(?P<captured_text>(?:.*?)\b\d{5}\b)",
+        # Improved to handle spaces in plate numbers
+        "plate_no": r'(?:ทะเบียนรถ|เบียนรถ)[:\s]*(?P<plate_no>(?:[ก-ฮ]{1,2}|[1-9])(?:\s*[ก-ฮ]{1,2}\s*|\s*\d{1,4}\s*){1,2})',
+        # Adjusted for 6-8 digits for mileage
+        "milestone": r'(?:เลขระยะทาง|เลขไมล์|ไมล์)[:\s]*.*?(\d{6,8})',
+        # More flexible for receipt numbers, including shorter ones like 6 digits
+        "receipt_no": r"(?:เลขที่|เลขที่ใบกํากับภาษี)[\s:#(]*((?:TIO)?\d{6,18}|[A-Z0-9\-/]{5,20})",
+        "liters": r"(?:LITER|liter|ลิตร)[:\s]*(\d+\.\d{2})",  # Added "ลิตร"
     }
 
     keyword_mappings = {
-        "total_amount": ["เป็นเงิน"],
+        # Added "รวมเป็นเงิน", "total", "sale"
+        "total_amount": ["เป็นเงิน", "รวมเป็นเงิน", "total", "sale"],
         "date": ["วันที่พิมพ์", "วันที่", "date", "วันที่ขาย", "มือจ่าย"],
         "receipt_no": ["เลขที่", "เลขใบกำกับภาษี"],
         "liters": ["ลิตร", "liters", "litre", "l"],
         "plate_no": ["ทะเบียนรถ", "เบียนรถ"],
-        "milestone": ["ระยะ", "km", "กม", "เลขไมล์"],
+        "milestone": ["ระยะ", "km", "กม", "เลขไมล์", "ไมล์"],  # Added "ไมล์"
         "VAT": ["vat", "ภาษีมูลค่าเพิ่ม"],
         "gas_address": ["ที่อยู่", "อยู่"],
         "gas_type": ["ดีเซล", "เบนซิน", "e20", "e85", "gasohol", "hi-diesel"],
-        "merchant_name": ["บริษัท", "จำกัด"],
+        # Added specific keywords for merchant
+        "merchant_name": ["บริษัท", "จำกัด", "บางจาก", "bangchak"],
         "egat_address_th": ["การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย", "กฟผ."],
         "egat_address_eng": ["electricity", "generating", "authority", "of", "thailand", "egat"],
         "egat_tax_id": ["เลขประจำตัวผู้เสียภาษี", "taxid", "099"],
-        "gas_provider": ["ptt"],
-        "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี"],
+        # Added "บางจาก", "bangchak"
+        "gas_provider": ["ptt", "บางจาก", "bangchak"],
+        # Added "taxid"
+        "gas_tax_id": ["เลขประจำตัวผู้เสียภาษี", "เสียภาษี", "taxid"],
     }
 
     fields_to_extract_order = [

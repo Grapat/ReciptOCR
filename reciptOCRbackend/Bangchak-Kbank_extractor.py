@@ -107,7 +107,7 @@ def extract_data(image_pil, original_filename, initial_result):
     img_denoised = cv2.medianBlur(img_cv_gray, 1)
     img_thresh = cv2.adaptiveThreshold(img_denoised, 255,
                                        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                       cv2.THRESH_BINARY, 31, 10)
+                                       cv2.THRESH_BINARY, 21, 10)
 
     processed_image_for_ocr = Image.fromarray(img_thresh)
 

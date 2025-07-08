@@ -1,71 +1,74 @@
 /* Styles for the main cropping container */
 .crop-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
 /* Styles for the buttons */
 .crop-button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: bold;
-    transition: background-color 0.3s ease, transform 0.2s ease;
-    margin: 0 6px; /* Adjust margin for spacing between buttons */
-}
-
-.crop-button-confirm {
-    background-color: #4CAF50; /* Green */
-    color: white;
-}
-
-.crop-button-cancel {
-    background-color: #f44336; /* Red */
-    color: white;
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: white;
+  width: 100%;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  transition: 0.3s ease;
+  background-color: #007bff;
 }
 
 .crop-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  background-color: #0056b3;
+}
+
+.crop-button-confirm {
+  background-color: #4caf50; /* Green */
+  color: white;
+}
+
+.crop-button-cancel {
+  background-color: #f44336; /* Red */
+  color: white;
 }
 
 .crop-button-confirm:hover {
-    background-color: #45a049;
+  background-color: #45a049;
 }
 
 .crop-button-cancel:hover {
-    background-color: #da190b;
+  background-color: #da190b;
 }
 
 .crop-button:active {
-    transform: translateY(0);
-    box-shadow: none;
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 /* Optional: Add styles for the select element for consistency */
 select {
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    background-color: white;
-    font-size: 14px;
-    cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background-color: white;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 select:focus {
-    outline: none;
-    border-color: #4CAF50;
-    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  outline: none;
+  border-color: #4caf50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
 }
