@@ -5,7 +5,7 @@ import numpy as np
 import os
 from PIL import Image
 import pytesseract
-
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 def _extract_amount(text_to_search):
     amount_match = re.search(
