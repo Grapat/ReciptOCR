@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-# Install Tesseract OCR
+# Install system dependencies
 apt-get update && apt-get install -y tesseract-ocr
 
-# Continue normal build
+# Install Python dependencies (if needed)
 pip install -r requirements.txt
+
+# Install Node.js dependencies
+npm install
