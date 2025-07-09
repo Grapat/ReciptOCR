@@ -1,3 +1,4 @@
+import shutil
 import re
 from datetime import datetime
 import cv2
@@ -6,6 +7,9 @@ import os
 from PIL import Image
 import pytesseract
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
+print("DEBUG: Tesseract path:", shutil.which("tesseract"))
+
 
 def _extract_amount(text_to_search):
     amount_match = re.search(
