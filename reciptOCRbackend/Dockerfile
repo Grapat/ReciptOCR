@@ -1,30 +1,34 @@
-# Use a base image with Node + Python
-FROM node:18-slim
+# Use official Node.js LTS base image
+FROM node:22-slim
 
-# Install Python + pip + tesseract-ocr
+# Install Python, pip, Tesseract, and Thai language data
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     tesseract-ocr \
+    tesseract-ocr-tha \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set working directory inside container
 WORKDIR /app
 
-# Copy backend code
-COPY . .
-
-# Install Node.js dependencies
+# Copy package files and install Node dependencies
+COPY package*.json ./
 RUN npm install
 
-# Install Python dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Copy Python dependency list and install
+COPY requirements.txt ./
+RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
 
-# Optional: explicitly set path to Tesseract if needed in Python
-# Example: pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+# Copy rest of application code
+COPY . .
 
-# Expose port (adjust if your server uses a different one)
+# Set environment variables (optional: better error messages in Node/Flask)
+ENV NODE_ENV=production
+ENV PYTHONUNBUFFERED=1
+
+# Expose port used by the app
 EXPOSE 5000
 
-# Start your Node.js backend (adjust the filename as needed)
+# Start your Node.js server
 CMD ["npm", "start"]
