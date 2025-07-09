@@ -1,8 +1,11 @@
+// Load environment variables from .env file FIRST
+require("dotenv").config();
+
 // Node.js Express Server
 const express = require("express");
-const cors = require("cors"); // For Cross-Origin Resource Sharing
-const path = require("path"); // For path manipulation
-const db = require("./models"); // Import Sequelize models
+const cors = require("cors");
+const path = require("path");
+const db = require("./models");
 
 // Import your API routes
 const receiptRoutes = require("./routes/receiptRoutes");
@@ -22,7 +25,7 @@ app.use(
 
 // Middleware to parse JSON bodies (if you have other API endpoints that send JSON)
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // For parsing URL-encoded bodies
+app.use(express.urlencoded({ extended: true }));
 
 // --- Register API Routes ---
 // All routes starting with /api/receipts will be handled by receiptRoutes
@@ -41,7 +44,7 @@ app.use((err, req, res, next) => {
 
 // Sync Sequelize models with the database and start the server
 db.sequelize
-  .sync() // This will create tables if they don't exist (use `db:migrate` for production)
+  .sync()
   .then(() => {
     app.listen(port, () => {
       console.log(`Server listening on port ${port}`);

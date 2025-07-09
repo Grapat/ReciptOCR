@@ -1,5 +1,4 @@
-# Use official Node.js LTS base image
-FROM node:22-slim
+FROM node:18
 
 # Install Python, pip, Tesseract, and Thai language data
 RUN apt-get update && apt-get install -y \
