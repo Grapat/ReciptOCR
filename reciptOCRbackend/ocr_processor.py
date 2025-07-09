@@ -9,7 +9,7 @@ import numpy as np
 import json
 from datetime import datetime
 import importlib
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+
 # OCR Language Setting (Thai and English)
 OCR_LANGUAGES = 'eng+tha'
 
