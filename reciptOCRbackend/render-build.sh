@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 
-# Install system dependencies
-apt-get update && apt-get install -y tesseract-ocr
+# Exit on error
+set -e
 
-# Install Python dependencies (if needed)
-pip install -r requirements.txt
+# 1. Install Tesseract (including Thai language data)
+apt-get update && apt-get install -y \
+  tesseract-ocr \
+  tesseract-ocr-tha
 
-# Install Node.js dependencies
+# 2. Install Python dependencies
+pip install --no-cache-dir -r requirements.txt
+
+# 3. Install Node.js dependencies
 npm install
