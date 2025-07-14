@@ -1,12 +1,15 @@
 FROM node:18-alpine
 
-# Install Python, pip, Tesseract, and Thai language data
-RUN apt-get update && apt-get install -y \
+# Install Python, pip, Tesseract, Thai language data, and build tools
+RUN apk update && apk add --no-cache \
     python3 \
-    python3-pip \
+    py3-pip \
     tesseract-ocr \
-    tesseract-ocr-tha \
-    && rm -rf /var/lib/apt/lists/*
+    tesseract-ocr-data-tha \
+    build-base \
+    cmake \
+    # Clean up apk cache to reduce image size
+    && rm -rf /var/cache/apk/*
 
 # Set working directory inside container
 WORKDIR /app
