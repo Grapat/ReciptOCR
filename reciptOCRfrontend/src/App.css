@@ -409,7 +409,7 @@ body,
   background-color: #218838;
 }
 
-.save-button.scanner-save-button {
+.scanner-save-button {
   /* Renamed to avoid conflict with admin's .save-button */
   padding: 14px;
   font-size: 1.1rem;
@@ -423,7 +423,7 @@ body,
   background-color: #007bff;
 }
 
-.save-button.scanner-save-button:hover {
+.scanner-save-button:hover {
   background-color: #0056b3;
 }
 

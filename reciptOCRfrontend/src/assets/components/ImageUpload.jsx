@@ -26,7 +26,7 @@ function ImageUpload({ imagePreviewUrl, handleImageChange, statusMessage, isErro
           ref={fileInputRef}
         />
         <button
-          className="save-button scanner-save-button"
+          className="scanner-save-button"
           onClick={handleButtonClick}
         >
           เลือกใบเสร็จ

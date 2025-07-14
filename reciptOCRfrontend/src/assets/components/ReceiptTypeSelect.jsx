@@ -1,5 +1,4 @@
 // components/ReceiptTypeSelect.jsx
-import React from 'react';
 
 function ReceiptTypeSelect({ receiptType, handleReceiptTypeChange }) {
   return (

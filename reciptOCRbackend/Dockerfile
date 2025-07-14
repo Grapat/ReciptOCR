@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:18-alpine
 
 # Install Python, pip, Tesseract, and Thai language data
 RUN apt-get update && apt-get install -y \

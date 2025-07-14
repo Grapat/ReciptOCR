@@ -400,7 +400,7 @@ function ScannerPage() {
         <>
           {/* Left Side - Upload */}
           <div className="left-panel card-container fade-in">
-            <div className="section-title"><i className="fas fa-upload"></i> Upload</div>
+            <div className="section-title"><i className="fas fa-upload"></i>อัปรูปใบเสร็จ</div>
             <ImageUpload
               imagePreviewUrl={imagePreviewUrl}
               handleImageChange={handleImageChange}
@@ -409,15 +409,13 @@ function ScannerPage() {
             />
             {imagePreviewUrl && (
               <button onClick={handleCropButtonClick} className="crop-button">
-                Crop Image
+                ตัดแต่งรูปภาพ
               </button>
             )}
-            <br />
             <ReceiptTypeSelect
               receiptType={receiptType}
               handleReceiptTypeChange={handleReceiptTypeChange}
             />
-            <br />
             <ProcessButton
               handleProcessReceipt={handleProcessReceipt}
               selectedFile={selectedFile}
@@ -430,7 +428,7 @@ function ScannerPage() {
           {/* Right Side - Form + Raw Extract */}
           <div className="right-panel">
             <div className="form-section-container card-container fade-in">
-              <div className="section-title">form</div>
+              <div className="section-title">แบบฟอร์ม</div>
               {parsedData ? (
                 <>
                   <ParsedDataDisplay
@@ -453,7 +451,7 @@ function ScannerPage() {
             </div>
 
             <div className="raw-output-section-container card-container fade-in">
-              <div className="section-title">Raw extract</div>
+              <div className="section-title">ข้อความดิบที่สแกนได้จาก</div>
               {extractedText ? (
                 <ExtractedTextDisplay extractedText={extractedText} />
               ) : (

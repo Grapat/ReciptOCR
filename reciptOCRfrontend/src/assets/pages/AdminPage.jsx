@@ -10,6 +10,11 @@ function AdminPage() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isError, setIsError] = useState(false);
   const navigate = useNavigate();
+
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [filterReceiptType, setFilterReceiptType] = useState('');
+
   const fetchAllReceipts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -69,9 +74,59 @@ function AdminPage() {
     navigate(`/admin/edit/${id}`);
   }, [navigate]);
 
+  const filteredReceipts = receipts.filter((receipt) => {
+    const transactionDate = receipt.transactionDate ? new Date(receipt.transactionDate) : null;
+
+    const isInDateRange =
+      (!startDate || (transactionDate && transactionDate >= new Date(startDate))) &&
+      (!endDate || (transactionDate && transactionDate <= new Date(endDate)));
+
+    const matchesType = filterReceiptType
+      ? receipt.receiptType === filterReceiptType
+      : true;
+
+    return isInDateRange && matchesType;
+  });
+
   return (
     <div className="admin-page-container">
       <h2>จัดการใบเสร็จ (Admin)</h2>
+
+      <div className="filter-container">
+        <div>
+          <label>Start Date:</label>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="filter-input"
+          />
+        </div>
+        <div>
+          <label>End Date:</label>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="filter-input"
+          />
+        </div>
+        <div>
+          <label>Receipt Type:</label>
+          <select
+            value={filterReceiptType}
+            onChange={(e) => setFilterReceiptType(e.target.value)}
+            className="filter-input"
+          >
+            <option value="">-- All Types --</option>
+            <option value="PTT-Kbank">PTT-Kbank</option>
+            <option value="A5">A5</option>
+            <option value="Bangchak-Kbank">Bangchak-Kbank</option>
+            <option value="Bangchak-Krungthai">Bangchak-Krungthai</option>
+            <option value="generic">generic</option>
+          </select>
+        </div>
+      </div>
 
       {statusMessage && (
         <p className={`status-message ${isError ? 'status-message-error' : 'status-message-success'}`}>
@@ -99,12 +154,12 @@ function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {receipts.length === 0 ? (
+              {filteredReceipts.length === 0 ? (
                 <tr>
                   <td colSpan="9" style={{ textAlign: 'center' }}>No receipts found.</td>
                 </tr>
               ) : (
-                receipts.map((receipt) => (
+                filteredReceipts.map((receipt) => (
                   <tr key={receipt.id}>
                     <td>{receipt.id.substring(0, 8)}...</td>
                     <td>{receipt.merchantName || 'N/A'}</td>

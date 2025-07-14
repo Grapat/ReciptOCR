@@ -1,5 +1,4 @@
 // components/ExtractedTextDisplay.jsx
-import React from 'react';
 
 function ExtractedTextDisplay({ extractedText }) {
   return (

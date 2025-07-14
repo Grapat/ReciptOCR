@@ -1,5 +1,4 @@
 // components/ProcessButton.jsx
-import React from 'react';
 
 function ProcessButton({ handleProcessReceipt, selectedFile, isProcessing }) {
   return (
