@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: reciptocr-backend
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  postgres:
+    image: postgres:13
+    container_name: reciptocr-db
+    environment:
+      POSTGRES_USER: Admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: receipt
+    ports:
+      - "5678:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge

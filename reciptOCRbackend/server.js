@@ -43,6 +43,8 @@ app.use((err, req, res, next) => {
 });
 
 // Sync Sequelize models with the database and start the server
+console.log("DB_HOST:", process.env.DB_HOST);
+
 db.sequelize
   .sync()
   .then(() => {

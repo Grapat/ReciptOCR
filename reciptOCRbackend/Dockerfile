@@ -1,36 +1,35 @@
-FROM node:18-alpine
+FROM node:18-bullseye
 
 # Install Python, pip, Tesseract, Thai language data, and build tools
-RUN apk update && apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
-    py3-pip \
+    python3-pip \
     tesseract-ocr \
-    tesseract-ocr-data-tha \
-    build-base \
+    tesseract-ocr-tha \
+    build-essential \
     cmake \
-    # Clean up apk cache to reduce image size
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory inside container
+# Set working directory
 WORKDIR /app
 
-# Copy package files and install Node dependencies
+# Install Node dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy Python dependency list and install
+# Install Python dependencies
 COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt --break-system-packages
+RUN pip3 install --upgrade pip && pip3 install --no-cache-dir -r requirements.txt
 
-# Copy rest of application code
+# Copy application source code
 COPY . .
 
-# Set environment variables (optional: better error messages in Node/Flask)
+# Set environment variables
 ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Expose port used by the app
+# Expose app port
 EXPOSE 5000
 
-# Start your Node.js server
+# Start the Node.js server
 CMD ["npm", "start"]
