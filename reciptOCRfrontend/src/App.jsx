@@ -11,7 +11,7 @@ function App() {
     <Router>
       <div className="app-container">
         <Routes>
-          <Route path="/" element={<ScannerPage />} />
+          <Route path="/*" element={<ScannerPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/edit/:id" element={<EditReceiptPage />} />
         </Routes>
