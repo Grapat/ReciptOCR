@@ -34,7 +34,7 @@ exports.processReceipt = async (req, res) => {
   );
 
   // Spawn Python child process to perform OCR
-  const pythonProcess = spawn("python", [
+  const pythonProcess = spawn("python3", [
     ocrProcessorPath,
     receiptType,
     filename,
