@@ -99,7 +99,7 @@ def extract_data(image_pil, original_filename, initial_result):
     result = {field: (initial_result[field] if initial_result[field]
                       != "N/A" else None) for field in initial_result.keys()}
 
-    result["receipt_type_used"] = "Bangchak-Kbank"
+    result["receipt_type_used"] = "Bangchak-Krungthai"
 
     img_np = np.array(image_pil)
     img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)

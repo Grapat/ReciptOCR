@@ -99,7 +99,7 @@ def extract_data(image_pil, original_filename, initial_result):
     result = {field: (initial_result[field] if initial_result[field]
                       != "N/A" else None) for field in initial_result.keys()}
 
-    result["receipt_type_used"] = "A5"
+    result["receipt_type_used"] = "PTT-Kbank"
 
     img_np = np.array(image_pil)
     img_cv_gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
@@ -131,7 +131,7 @@ def extract_data(image_pil, original_filename, initial_result):
         "egat_address_eng": r"(?:electricity\s*generating\s*authority\s*of\s*thai.*?\b1130\b)",
         # EGAT tax ID with 099 prefix
         # Specific 099 regex
-        "egat_tax_id": r"(?:TAX\s*ID|TAX\s*ID)[:\s]*(099\d{9,12})",
+        "egat_tax_id": r"(?:TAX\s*ID|ID|tax\s*id|id)[:\s]*(099\d{9,12})",
         # Gas tax ID; generic 10-15 digits after keywords
         "gas_tax_id": r'(?:เสียภาษี|TAX\s*ID|เลขประจำตัวผู้เสียภาษี)[:\s]*(\d{10,15})',
         # More robust merchant name capture for Bangchak and generic company names
