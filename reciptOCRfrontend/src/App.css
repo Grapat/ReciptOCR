@@ -1,0 +1,690 @@
+/* Combined CSS from App.css, AdminPage.css, and ScannerPage.css with redundancies removed, plus new classes from JSX files */
+
+/* --- Global Styles & Resets (from App.css) --- */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: "Arial", sans-serif;
+  background-color: #f0f2f5;
+  color: #333;
+  line-height: 1.6; /* Improved readability */
+}
+
+.main-content-layout {
+  max-width: 90vw;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* --- Header Styles (from App.css) --- */
+.header-title {
+  text-align: center;
+  color: #333;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-size: 2.2em;
+}
+
+.header-description {
+  text-align: center;
+  color: #555;
+  margin-bottom: 20px;
+  font-size: 1.1em;
+}
+
+/* --- Navigation Bar Styles (from App.css) --- */
+.navigation-bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #333;
+  padding: 15px 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  gap: 25px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.nav-button {
+  text-decoration: none;
+  color: #f4f4f4;
+  font-size: 1.1em;
+  font-weight: 600;
+  padding: 10px 15px;
+  border-radius: 6px;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.nav-button:hover {
+  background-color: #555;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.nav-button.active {
+  background-color: #007bff;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4);
+  pointer-events: none;
+}
+
+/* --- General Card & Container Styles (from App.css & ScannerPage.css) --- */
+/* Note: ScannerPage.css defines a .card-container with 12px border-radius and slightly different box-shadow/padding.
+   For consistency, this combined file will use the App.css .card-container properties as the base,
+   and any scanner-specific layout container will be handled by .scanner-page-container.
+   If the ScannerPage's .card-container visual difference is intentional for inner cards, it should have a different class name.
+   For now, App.css .card-container is considered the primary general card style.
+*/
+.card-container {
+  background-color: #fff;
+  border-radius: 8px; /* Used 8px from App.css for general consistency */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Used App.css shadow */
+  padding: 25px; /* Used 25px from App.css */
+  margin-bottom: 20px;
+}
+
+/* --- Status Messages (Centralized from App.css, also present in ScannerPage.css, AdminPage.css) --- */
+/* The styles here are from App.css and are generally more robust. ScannerPage.css had slightly different colors.
+   Keeping App.css versions for centralized management. */
+.status-message {
+  text-align: center;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 20px auto; /* Centered, with top/bottom margin */
+  font-weight: bold;
+  word-break: break-word;
+  width: 90%;
+  max-width: 600px;
+  box-sizing: border-box;
+}
+
+.status-message-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status-message-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* --- General Button Styles (from App.css) --- */
+.button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  white-space: nowrap; /* Prevent text wrapping */
+  display: inline-block; /* Allows padding to work correctly */
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Specific button colors (from App.css) */
+.button.primary {
+  background-color: #007bff;
+  color: white;
+}
+.button.primary:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.button.success {
+  background-color: #28a745;
+  color: white;
+}
+.button.success:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.button.danger {
+  background-color: #dc3545;
+  color: white;
+}
+.button.danger:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.button.secondary {
+  background-color: #6c757d;
+  color: white;
+}
+.button.secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+/* --- General Form Field Styles (from App.css) --- */
+.form-field {
+  margin-bottom: 15px; /* Space between fields */
+}
+
+.form-field label {
+  display: block; /* Label on its own line */
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 0.95em;
+}
+
+.form-field input[type="text"],
+.form-field input[type="date"],
+.form-field input[type="number"],
+.form-field input[type="email"],
+.form-field select,
+.form-field textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #fcfcfc;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+}
+
+/* --- AdminPage.css Specific Styles --- */
+.admin-page-container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.admin-page-title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 2em;
+  font-weight: bold;
+}
+
+.receipts-table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.receipts-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.receipts-table th,
+.receipts-table td {
+  border: 1px solid #ddd;
+  padding: 12px 15px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.receipts-table th {
+  background-color: #e9e9e9;
+  font-weight: bold;
+  color: #555;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.receipts-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.receipts-table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.actions-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Admin Specific Action Buttons (inheriting from .button) */
+.action-button {
+  margin: 0 5px;
+  font-size: 0.9em;
+  padding: 8px 12px;
+}
+
+.edit-button {
+  background-color: #007bff;
+  color: white;
+}
+.edit-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.delete-button {
+  background-color: #dc3545;
+  color: white;
+}
+.delete-button:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+/* Admin Edit Form Styles */
+.edit-form-container {
+  padding: 25px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.edit-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* Specific Edit Form Buttons */
+.save-button {
+  /* This refers to the admin page's save button, distinct from scanner's save button */
+  background-color: #28a745;
+  color: white;
+}
+.save-button:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+}
+.cancel-button:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+/* --- ScannerPage.css Specific Styles --- */
+.scanner-page-container {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding: 30px;
+  gap: 30px;
+  box-sizing: border-box;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  font-size: 1.5em;
+  font-weight: 600;
+  gap: 10px;
+  color: #333;
+}
+
+.section-title i {
+  color: #007bff;
+}
+
+.image-preview-container {
+  width: 100%;
+  max-height: 400px;
+  overflow: hidden;
+  background-color: #f0f0f0;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.image-preview-placeholder {
+  font-style: italic;
+  color: #999;
+  text-align: center;
+  padding: 30px;
+}
+
+/* Scanner Specific Buttons (these are distinct from the general .button in App.css due to size/purpose) */
+.process-button {
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: white;
+  width: 100%;
+  transition: 0.3s ease;
+  background-color: #28a745;
+}
+
+.process-button:hover {
+  background-color: #218838;
+}
+
+.scanner-save-button {
+  /* Renamed to avoid conflict with admin's .save-button */
+  padding: 14px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: white;
+  width: 100%;
+  transition: 0.3s ease;
+  background-color: #007bff;
+}
+
+.scanner-save-button:hover {
+  background-color: #0056b3;
+}
+
+.extracted-text-container {
+  background-color: #f4f6f8;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  padding: 16px;
+  font-family: monospace;
+  font-size: 0.95rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.parsed-data-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.form-input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* New/Updated CSS classes based on JSX analysis */
+
+/* ExtractedTextDisplay.jsx */
+.extracted-text-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.extracted-text-content {
+  font-size: 0.9em;
+  color: #555;
+}
+
+/* ImageUpload.jsx */
+.file-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.file-input-hidden {
+  display: none; /* Hide the default file input */
+}
+
+.file-input-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ParsedDataDisplay.jsx */
+.parsed-data-title {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #333;
+  grid-column: 1 / -1; /* Span across all columns in grid */
+}
+
+/* ProcessButton.jsx */
+.spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* ScannerPage.jsx layout columns */
+.left-content-column {
+  flex: 1; /* Takes equal space */
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.right-content-column {
+  flex: 1; /* Takes equal space */
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Fade-in animation for card containers */
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Specific containers for sections within ScannerPage */
+.image-upload-section,
+.form-section-container,
+.raw-output-section-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Consistent gap for internal elements */
+  /* These containers already have .card-container which provides background, padding, shadow */
+}
+
+/* Placeholder boxes for when data is not available */
+.placeholder-box {
+  background-color: #e9ecef;
+  border: 1px dashed #ced4da;
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px; /* Ensure visibility */
+}
+
+.placeholder-text {
+  margin: 0;
+  font-size: 1.1em;
+}
+
+/* --- Responsive Adjustments (Combined and optimized) --- */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 0; /* Ensures no extra padding */
+  }
+  .header-title {
+    font-size: 1.8em;
+  }
+  .header-description {
+    font-size: 1em;
+  }
+  .status-message {
+    width: 95%;
+    margin: 15px auto; /* Adjust margin for smaller screens */
+  }
+
+  /* Admin Page Responsive */
+  .admin-page-container {
+    width: 95%;
+    padding: 15px;
+  }
+  .admin-page-title {
+    font-size: 1.8em;
+  }
+  .receipts-table th,
+  .receipts-table td {
+    padding: 10px;
+    font-size: 0.9em;
+  }
+  .action-button {
+    font-size: 0.8em;
+    padding: 6px 10px;
+  }
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Scanner Page Responsive */
+  .scanner-page-container {
+    flex-direction: column; /* Stack columns on smaller screens */
+    padding: 20px 15px;
+    gap: 20px;
+  }
+  .left-content-column,
+  .right-content-column {
+    width: 100%;
+  }
+  .parsed-data-container {
+    grid-template-columns: 1fr;
+  }
+  .section-title {
+    font-size: 1.2em;
+  }
+  .image-preview-container {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  .navigation-bar {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+  .nav-button {
+    width: 90%;
+    text-align: center;
+  }
+  .button {
+    font-size: 1em;
+    padding: 10px 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Admin Page Responsive */
+  .admin-page-container {
+    width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 10px;
+  }
+  .edit-form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  /* Apply to all .button when stacked in small viewports */
+  .button,
+  .process-button,
+  .save-button.scanner-save-button {
+    /* Also apply to specific buttons */
+    width: 100%;
+  }
+}
