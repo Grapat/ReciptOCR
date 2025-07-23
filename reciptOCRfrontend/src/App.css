@@ -10,7 +10,7 @@ body,
   overflow-x: hidden;
   overflow-y: auto;
   font-family: "Arial", sans-serif;
-  background-color: #f0f2f5;
+  background-color: #fcfcfc;
   color: #333;
   line-height: 1.6; /* Improved readability */
 }
@@ -417,14 +417,14 @@ body,
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  color: white;
+  color: #000000;
   width: 100%;
   transition: 0.3s ease;
-  background-color: #007bff;
+  background-color: #EFB036;
 }
 
 .scanner-save-button:hover {
-  background-color: #0056b3;
+  background-color: #c5932d;
 }
 
 .extracted-text-container {

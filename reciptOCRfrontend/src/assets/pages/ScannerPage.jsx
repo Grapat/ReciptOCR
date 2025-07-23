@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import ImageCropper from '../components/ImageCropper'; // Correct path to ImageCropper
+import ImageCropper from '../components/ImageCropper';
 import ReceiptTypeSelect from '../components/ReceiptTypeSelect';
 import ImageUpload from '../components/ImageUpload';
 import ProcessButton from '../components/ProcessButton';
@@ -37,11 +37,11 @@ function ScannerPage() {
     egat_tax_id: ''
   });
   const [receiptType, setReceiptType] = useState('generic');
-  const fileInputRef = useRef(null); // This ref is for the file input that ImageUpload uses internally.
+  const fileInputRef = useRef(null);
 
   // State for controlling the cropper visibility and image source for cropping
-  const [imageToCrop, setImageToCrop] = useState(null); // Stores the URL of the image to be cropped
-  const [showCropper, setShowCropper] = useState(false); // Controls visibility of ImageCropper
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
 
 
   useEffect(() => {
@@ -389,7 +389,7 @@ function ScannerPage() {
   const validEgatTaxid = master.egatTaxId ? [master.egatTaxId] : [];
 
   return (
-    <div className="main-content-layout scanner-flex-layout">
+    <div className="main-content-layout">
       {showCropper && imageToCrop ? (
         <ImageCropper
           imageSrc={imageToCrop}
@@ -399,8 +399,8 @@ function ScannerPage() {
       ) : (
         <>
           {/* Left Side - Upload */}
-          <div className="left-panel card-container fade-in">
-            <div className="section-title"><i className="fas fa-upload"></i>อัปรูปใบเสร็จ</div>
+          <div className="left-panel">
+            <div className="section-title"><i>อัปรูปใบเสร็จ</i></div>
             <ImageUpload
               imagePreviewUrl={imagePreviewUrl}
               handleImageChange={handleImageChange}
@@ -427,7 +427,7 @@ function ScannerPage() {
 
           {/* Right Side - Form + Raw Extract */}
           <div className="right-panel">
-            <div className="form-section-container card-container fade-in">
+            <div className="form-section-container">
               <div className="section-title">แบบฟอร์ม</div>
               {parsedData ? (
                 <>
@@ -444,18 +444,18 @@ function ScannerPage() {
                   />
                 </>
               ) : (
-                <div className="placeholder-box top">
+                <div className="placeholder-box">
                   <p className="placeholder-text">ข้อมูลใบเสร็จที่ถูกดึงจะปรากฏที่นี่</p>
                 </div>
               )}
             </div>
 
-            <div className="raw-output-section-container card-container fade-in">
+            <div className="raw-output-section-container">
               <div className="section-title">ข้อความดิบที่สแกนได้จาก</div>
               {extractedText ? (
                 <ExtractedTextDisplay extractedText={extractedText} />
               ) : (
-                <div className="placeholder-box bottom">
+                <div className="placeholder-box">
                   <p className="placeholder-text">ข้อความดิบที่สแกนได้จาก OCR จะปรากฏที่นี่</p>
                 </div>
               )}
