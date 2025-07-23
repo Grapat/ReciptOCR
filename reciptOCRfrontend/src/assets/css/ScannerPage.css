@@ -200,17 +200,30 @@
 
 /* For screens smaller than 768px (mobile) */
 @media (max-width: 767px) {
+  .main-content-layout {
+    display: block;
+    gap: 1rem;
+    padding-top: 6rem;
+    min-height: calc(100vh - 6rem);
+    width: 100%;
+  }
+
   .scanner-flex-layout {
     flex-direction: column;
+    /* Stack panels vertically */
     padding: 20px;
+    /* Slightly less padding on mobile */
     gap: 20px;
+    /* Adjust gap for vertical stacking */
   }
 
   .left-panel,
   .right-panel {
     flex-shrink: 0;
     width: 100%;
+    /* Take full width */
     max-width: none;
+    /* Remove max-width constraint on mobile */
   }
 }
 
@@ -218,6 +231,7 @@
 @media (min-width: 768px) {
   .scanner-flex-layout {
     flex-direction: row;
+    /* Arrange panels horizontally */
   }
 
   .left-panel {
