@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    container_name: postgres_db_local
+    environment:
+      POSTGRES_DB: my_app_db
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mysecretpassword
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Optional: if you want to access DB from host
+    healthcheck: # <-- Add this section for healthcheck
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s # Check every 5 seconds
+      timeout: 5s  # Timeout after 5 seconds
+      retries: 5   # Retry 5 times
+      start_period: 10s # Give the DB 10 seconds to start up initially before checking
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend_server_local
+    ports:
+      - "8000:8000"
+    environment:
+      DB_USERNAME: myuser
+      DB_PASSWORD: mysecretpassword
+      DB_NAME: my_app_db
+      DB_HOST: db
+      DB_PORT: 5432
+      NODE_ENV: development
+    depends_on:
+      db:
+        condition: service_healthy # <-- IMPORTANT: Wait for 'db' service to be healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend_nginx_local
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
