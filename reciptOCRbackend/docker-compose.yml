@@ -19,7 +19,7 @@ services:
     image: postgres:13
     container_name: reciptocr-db
     environment:
-      POSTGRES_USER: Admin
+      POSTGRES_USER: Admins
       POSTGRES_PASSWORD: admin123
       POSTGRES_DB: receipt
     ports:
