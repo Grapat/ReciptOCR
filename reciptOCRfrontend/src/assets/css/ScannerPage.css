@@ -1,31 +1,249 @@
+/* Overall Page Layout */
+.main-content-layout {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding-top: 6rem;
+  min-height: calc(100vh - 6rem);
+  width: 100%;
+}
+
+/* Container for the two main panels (Left and Right) */
 .scanner-flex-layout {
   display: flex;
   gap: 30px;
   padding: 30px;
   box-sizing: border-box;
+  width: 100%;
+  align-items: flex-start;
 }
 
+/* Left Panel Styles */
 .left-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  max-width: 500px;
+  padding: 1.5rem;
+  background-color: #fdfdfd;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  border-radius: 0.5rem;
 }
 
+/* Right Panel Styles */
 .right-panel {
-  flex: 2;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  max-width: 500px;
+  padding: 1.5rem;
+  background-color: #fdfdfd;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  border-radius: 0.5rem;
 }
 
-@media (max-width: 768px) {
+/* Section Title (used in both panels) */
+.section-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.section-title i {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+/* Crop Button */
+.crop-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  background-color: #EFB036;
+  color: #000000;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.crop-button:hover {
+  background-color: #c5932d;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Styles for Image Upload component */
+.image-upload-container {
+  border: 2px dashed #ccc;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.image-upload-container:hover {
+  border-color: #3b82f6;
+}
+
+.image-upload-container input[type="file"] {
+  display: none;
+}
+
+.image-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-top: 1rem;
+}
+
+.status-message {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.status-message.error {
+  color: red;
+}
+
+.status-message.success {
+  color: green;
+}
+
+.receipt-type-select-container label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.receipt-type-select-container select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  background-color: white;
+  appearance: none;
+  background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%20viewBox%3D%220%200%20292.4%20292.4%22%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M287%20197.3l-13.9-13.9c-3.7-3.7-9.8-3.7-13.5%200L146.2%20259.9%2032.8%20146.4c-3.7-3.7-9.8-3.7-13.5%200L5.4%20160.3c-3.7%203.7-3.7%209.8%200%2013.5l123.6%20123.6c3.7%203.7%209.8%203.7%2013.5%200l123.6-123.6c3.7-3.7%203.7-9.8%200-13.5z%22%2F%3E%3C%2Fsvg%3E');
+  background-repeat: no-repeat;
+  background-position: right 0.7em top 50%, 0 0;
+  background-size: 0.65em auto, 100%;
+}
+
+
+/* Styles for Process Button component */
+.process-button {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  background-color: #10B981;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease-in-out;
+}
+
+.process-button:disabled {
+  background-color: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.process-button:not(:disabled):hover {
+  background-color: #059669;
+}
+
+/* Styles for the new sections within Right Panel */
+.form-section-container,
+.raw-output-section-container {
+  background-color: #FDFDFD;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #00000010;
+}
+
+.placeholder-box {
+  background-color: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  text-align: center;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-text {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 1rem;
+}
+
+/* Responsive adjustments */
+
+/* For screens smaller than 768px (mobile) */
+@media (max-width: 767px) {
+  .main-content-layout {
+    display: block;
+    gap: 1rem;
+    padding-top: 6rem;
+    min-height: calc(100vh - 6rem);
+    width: 100%;
+  }
+
   .scanner-flex-layout {
     flex-direction: column;
+    /* Stack panels vertically */
+    padding: 20px;
+    /* Slightly less padding on mobile */
+    gap: 20px;
+    /* Adjust gap for vertical stacking */
   }
 
   .left-panel,
   .right-panel {
+    flex-shrink: 0;
     width: 100%;
+    /* Take full width */
+    max-width: none;
+    /* Remove max-width constraint on mobile */
+  }
+}
+
+/* For screens larger than or equal to 768px (desktop) */
+@media (min-width: 768px) {
+  .scanner-flex-layout {
+    flex-direction: row;
+    /* Arrange panels horizontally */
+  }
+
+  .left-panel {
+    flex-basis: 500px;
+    flex-grow: 0;
+    flex-shrink: 0;
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .right-panel {
+    flex: 1;
+    flex-shrink: 1;
+    border-left: none;
   }
 }
