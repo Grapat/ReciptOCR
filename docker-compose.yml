@@ -18,10 +18,8 @@ services:
       start_period: 10s
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: backend_server_local
+    image: fleetcard-backend:1
+    container_name: fleetcard_backend_local
     ports:
       - "3000:3000"
     environment:
@@ -36,9 +34,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: fleetcard-frontend:1
     container_name: frontend_nginx_local
     ports:
       - "80:80"
