@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:13
@@ -25,7 +23,7 @@ services:
       dockerfile: Dockerfile
     container_name: backend_server_local
     ports:
-      - "8000:8000"
+      - "3000:3000"
     environment:
       DB_USERNAME: myuser
       DB_PASSWORD: mysecretpassword
