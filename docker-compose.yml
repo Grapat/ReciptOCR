@@ -9,13 +9,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432" # Optional: if you want to access DB from host
-    healthcheck: # <-- Add this section for healthcheck
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s # Check every 5 seconds
-      timeout: 5s  # Timeout after 5 seconds
-      retries: 5   # Retry 5 times
-      start_period: 10s # Give the DB 10 seconds to start up initially before checking
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   backend:
     build:
@@ -33,7 +33,7 @@ services:
       NODE_ENV: development
     depends_on:
       db:
-        condition: service_healthy # <-- IMPORTANT: Wait for 'db' service to be healthy
+        condition: service_healthy
 
   frontend:
     build:
