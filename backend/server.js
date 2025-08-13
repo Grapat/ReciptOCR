@@ -27,7 +27,7 @@ const distPath = path.join(__dirname, "./public");
 app.use(express.static(distPath));
 
 // Fallback to index.html for client-side routing
-app.get(/^\/(?!api|processed_uploads).*/, (req, res, next) => {
+app.get('/', (req, res, next) => {
   if (req.method === "GET" && req.accepts("html")) {
     const indexPath = path.join(distPath, "index.html");
     res.sendFile(indexPath, (err) => {
