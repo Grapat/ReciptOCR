@@ -1,47 +1,37 @@
 import sys
-import os
 from PIL import Image
 import io
 import pytesseract
-import re
 import cv2
 import numpy as np
 import json
-from datetime import datetime
 import importlib
 
 # OCR Language Setting (Thai and English)
 OCR_LANGUAGES = 'eng+tha'
 
-# Folder to save processed/debug images
 # PROCESSED_UPLOAD_FOLDER is no longer needed if no debug images are saved.
-# If other processed files are saved, keep this and the os.makedirs.
-# For this specific request, we will remove it.
 # PROCESSED_UPLOAD_FOLDER = os.path.join(
 #     os.path.dirname(__file__), '../processed_uploads')
 # os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
 
 
-# Added original_filename arg
-def dynamic_parse_ocr(image_pil, receipt_type="generic", original_filename="unknown"):
+def dynamic_parse_ocr(image_pil, original_filename="unknown"):
     initial_result = {
-        "merchant_name": "N/A",
-        "date": "N/A",
-        "total_amount": "N/A",
-        "receipt_type_used": receipt_type,
-        "gas_provider": "N/A",
-        "gas_name": "N/A",
-        "gas_address": "N/A",
-        "gas_tax_id": "N/A",
-        "receipt_no": "N/A",
-        "liters": "N/A",
-        "plate_no": "N/A",
+        "plateNo": "N/A",
+        "gasProvider": "N/A",
+        "transactionDate": "N/A",
+        "taxInvNo": "N/A",
+        "egatAddress": "N/A",
+        "egatTaxId": "N/A",
         "milestone": "N/A",
+        "amount": "N/A",
+        "liters": "N/A",
+        "pricePerLiter": "N/A",
         "VAT": "N/A",
-        "gas_type": "N/A",
-        "egat_address_th": "N/A",
-        "egat_address_eng": "N/A",
-        "egat_tax_id": "N/A",
+        "gasType": "N/A",
+        "original": False,
+        "signature": False,
     }
 
     # Initialize parsed_data here with its default values
@@ -118,11 +108,7 @@ if __name__ == '__main__':
 
         # Perform dynamic OCR parsing and get the parsed data AND the globally cleaned extracted text
         # debug_image_cv2 is no longer returned
-        parsed_data, extracted_text = dynamic_parse_ocr(
-            original_image_pil, receipt_type, original_filename)
-
-        # No debug image saving needed
-
+        parsed_data, extracted_text = dynamic_parse_ocr(original_image_pil,original_filename)
         # Prepare the final result dictionary to be sent back to Node.js as JSON
         result = {
             'message': 'Image processed dynamically!',

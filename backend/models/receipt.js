@@ -9,41 +9,27 @@ module.exports = (sequelize, DataTypes) => {
   Receipt.init(
     {
       id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true,
       },
-      merchantName: {
-        type: DataTypes.TEXT, // Changed from DataTypes.STRING to DataTypes.TEXT
-        allowNull: true, // Allow null if OCR might fail
-      },
-      gasProvider: {
-        type: DataTypes.ENUM("PTT", "Bangchak"), // Specific ENUM values
-        allowNull: true,
-      },
-      receiptType: {
-        type: DataTypes.ENUM(
-          "PTT-Kbank",
-          "A5",
-          "Bangchak-Kbank",
-          "Bangchak-Krungthai",
-          "generic"
-        ),
-        allowNull: true,
-      },
-      gasAddress: {
-        type: DataTypes.TEXT,
-        allowNull: true,
-      },
-      gasTaxId: {
+      plateNo: {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      egatAddressTH: {
+      gasProvider: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      egatAddressENG: {
+      transactionDate: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      taxInvNo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      egatAddress: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
@@ -51,24 +37,20 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
       },
-      receiptNo: {
+      milestone: {
         type: DataTypes.STRING,
-        allowNull: true,
-      },
-      liters: {
-        type: DataTypes.DECIMAL, // Use DECIMAL for exact precision for quantities
         allowNull: true,
       },
       amount: {
-        type: DataTypes.DECIMAL, // Use DECIMAL for exact precision for money
+        type: DataTypes.DECIMAL,
         allowNull: true,
       },
-      plateNo: {
-        type: DataTypes.STRING,
+      liters: {
+        type: DataTypes.DECIMAL, 
         allowNull: true,
       },
-      milestone: {
-        type: DataTypes.STRING,
+      pricePerLiter: {
+        type: DataTypes.DECIMAL,
         allowNull: true,
       },
       VAT: {
@@ -79,15 +61,19 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(20),
         allowNull: true,
       },
-      transactionDate: {
-        type: DataTypes.DATE,
+      original: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+      },
+      signature: {
+        type: DataTypes.BOOLEAN,
         allowNull: true,
       },
       rawExtractedText: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
-      debugImagePath: {
+      imageUrl: {
         type: DataTypes.STRING,
         allowNull: true,
       },

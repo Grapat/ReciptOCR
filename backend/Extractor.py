@@ -2,7 +2,6 @@ import re
 from datetime import datetime
 import cv2
 import numpy as np
-import os
 from PIL import Image
 import pytesseract
 
@@ -157,9 +156,8 @@ def extract_data(image_pil, original_filename, initial_result):
     }
 
     fields_to_extract_order = [
-        "date", "total_amount", "receipt_no", "liters", "plate_no", "milestone",
-        "VAT", "gas_type", "gas_address", "merchant_name", "egat_address_th",
-        "egat_address_eng", "egat_tax_id", "gas_provider", "gas_tax_id"
+        "transactionDate", "amount", "taxInvNo", "liters", "plateNo", "milestone",
+        "VAT", "gasType", "egatAddress", "gasProvider", "egatTaxId",
     ]
 
     for field in fields_to_extract_order:

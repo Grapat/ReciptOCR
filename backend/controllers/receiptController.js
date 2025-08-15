@@ -73,8 +73,8 @@ exports.processReceipt = async (req, res) => {
       const parsedData = result.parsed_data;
       // --- Date Conversion Logic ---
       let transactionDate = null;
-      if (parsedData.date && parsedData.date !== "N/A") {
-        const dateParts = parsedData.date.split("-"); // Assumes DD-MM-YYYY format from Python
+      if (parsedData.transactionDate && parsedData.transactionDate !== "N/A") {
+        const dateParts = parsedData.transactionDate.split("-");
         if (dateParts.length === 3) {
           let day = parseInt(dateParts[0], 10);
           let month = parseInt(dateParts[1], 10);
@@ -125,27 +125,23 @@ exports.processReceipt = async (req, res) => {
 
       // Create a new receipt record in the database
       const newReceipt = await db.Receipt.create({
-        merchantName: parsedData.merchant_name || null,
-        // Ensure date is handled correctly for TransactionDate
+        plateNo: parsedData.plateNo || null,
+        gasProvider: parsedData.gasProvider || null,
         transactionDate: transactionDate || null,
-        amount: cleanAndParseNumber(parsedData.total_amount),
-        gasProvider: parsedData.gas_provider || null,
-        gasName: parsedData.gas_name || null,
-        gasAddress: parsedData.gas_address || null,
-        gasTaxId: parsedData.gas_tax_id || null,
-        receiptNo: parsedData.receipt_no || null,
-        liters: cleanAndParseNumber(parsedData.liters),
-        plateNo: parsedData.plate_no || null,
+        taxInvNo: parsedData.taxInvNo || null,
+        egatAddress: parsedData.egatAddress || parsedData.egatAddressTH || parsedData.egatAddressENG || null,
+        egatTaxId: parsedData.egatTaxId || null,
         milestone: parsedData.milestone || null,
+        amount: cleanAndParseNumber(parsedData.amount),
+        liters: cleanAndParseNumber(parsedData.liters),
+        pricePerLiter: cleanAndParseNumber(parsedData.pricePerLiter),
         VAT: cleanAndParseNumber(parsedData.VAT),
-        gasType: parsedData.gas_type || null,
-        egatAddressTH: parsedData.egat_address_th || null,
-        egatAddressENG: parsedData.egat_address_eng || null,
-        egatTaxId: parsedData.egat_tax_id || null,
-        // Additional fields from OCR processing
-        receiptType: receiptType, // Use the type sent from frontend or generic
-        rawExtractedText: cleanedRawExtractedText, // Use the cleaned text
-        debugImagePath: result.debug_image_url,
+        gasType: parsedData.gasType || null,
+        original: parsedData.original !== null ? parsedData.original : null,
+        signature: parsedData.signature !== null ? parsedData.signature : null,
+        rawExtractedText: cleanedRawExtractedText,
+        // debugImagePath: result.debug_image_url,
+        // imageUrl: null,
       });
 
       // Add the new receipt's ID to the parsed_data being sent back to the frontend
@@ -174,42 +170,26 @@ exports.updateReceipt = async (req, res) => {
     const receiptId = req.params.id;
     const updateFields = req.body; // Incoming data from frontend (THIS IS CAMELCASE!)
 
-    // Correctly map incoming camelCase fields from frontend to Sequelize model fields (also camelCase)
     const receiptDataToUpdate = {
-      merchantName:
-        updateFields.merchantName === "" ? null : updateFields.merchantName,
-      transactionDate:
-        updateFields.transactionDate === ""
-          ? null
-          : updateFields.transactionDate,
-      amount: cleanAndParseNumber(updateFields.amount), // Use cleanAndParseNumber
-      gasProvider:
-        updateFields.gasProvider === "" ? null : updateFields.gasProvider,
-      gasName: updateFields.gasName === "" ? null : updateFields.gasName,
-      gasAddress:
-        updateFields.gasAddress === "" ? null : updateFields.gasAddress,
-      gasTaxId: updateFields.gasTaxId === "" ? null : updateFields.gasTaxId,
-      receiptNo: updateFields.receiptNo === "" ? null : updateFields.receiptNo,
-      liters: cleanAndParseNumber(updateFields.liters), // Use cleanAndParseNumber
-      plateNo: updateFields.plateNo === "" ? null : updateFields.plateNo,
-      milestone: updateFields.milestone === "" ? null : updateFields.milestone,
-      VAT: cleanAndParseNumber(updateFields.VAT), // Use cleanAndParseNumber
-      gasType: updateFields.gasType === "" ? null : updateFields.gasType,
-      egatAddressTH:
-        updateFields.egatAddressTH === "" ? null : updateFields.egatAddressTH,
-      egatAddressENG:
-        updateFields.egatAddressENG === "" ? null : updateFields.egatAddressENG,
-      egatTaxId: updateFields.egatTaxId === "" ? null : updateFields.egatTaxId,
+      plateNo: updateFields.plateNo || null,
+      gasProvider: updateFields.gasProvider || null,
+      transactionDate: updateFields.transactionDate || null,
+      taxInvNo: updateFields.taxInvNo || null,
+      egatAddress: updateFields.egatAddress || null,
+      egatTaxId: updateFields.egatTaxId || null,
+      milestone: updateFields.milestone || null,
+      amount: cleanAndParseNumber(updateFields.amount),
+      liters: cleanAndParseNumber(updateFields.liters),
+      pricePerLiter: cleanAndParseNumber(updateFields.pricePerLiter),
+      VAT: cleanAndParseNumber(updateFields.VAT),
+      gasType: updateFields.gasType || null,
+      original: updateFields.original !== null ? updateFields.original : null,
+      signature: updateFields.signature !== null ? updateFields.signature : null,
     };
 
-    // Filter out undefined/null values if you only want to update changed fields
-    Object.keys(receiptDataToUpdate).forEach((key) => {
-      // Also consider 'N/A' from OCR as null for DB consistency
-      if (
-        receiptDataToUpdate[key] === undefined ||
-        receiptDataToUpdate[key] === "N/A" ||
-        receiptDataToUpdate[key] === ""
-      ) {
+    // Filter out undefined/null values
+    Object.keys(receiptDataToUpdate).forEach(key => {
+      if (receiptDataToUpdate[key] === undefined || receiptDataToUpdate[key] === "N/A" || receiptDataToUpdate[key] === "") {
         receiptDataToUpdate[key] = null;
       }
     });
