@@ -20,10 +20,10 @@ app.use("/api/receipts", receiptRoutes);
 app.use("/api/master", masterRoutes);
 
 // Serve processed uploads
-app.use("/processed_uploads", express.static(path.join(__dirname, "./public")));
+app.use("/processed_uploads", express.static(path.join(__dirname, "processed_uploads")));
 
 // Serve static frontend
-const distPath = path.join(__dirname, "./public");
+const distPath = path.join(__dirname, "public");
 app.use(express.static(distPath));
 
 // Fallback to index.html for client-side routing

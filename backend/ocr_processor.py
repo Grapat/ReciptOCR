@@ -2,19 +2,16 @@ import sys
 from PIL import Image
 import io
 import pytesseract
-import cv2
-import numpy as np
 import json
 import importlib
+import cv2
+import numpy as np
+
+# Assuming the Extractor module is in the same directory
+import Extractor
 
 # OCR Language Setting (Thai and English)
 OCR_LANGUAGES = 'eng+tha'
-
-# PROCESSED_UPLOAD_FOLDER is no longer needed if no debug images are saved.
-# PROCESSED_UPLOAD_FOLDER = os.path.join(
-#     os.path.dirname(__file__), '../processed_uploads')
-# os.makedirs(PROCESSED_UPLOAD_FOLDER, exist_ok=True)
-
 
 def dynamic_parse_ocr(image_pil, original_filename="unknown"):
     initial_result = {
@@ -34,90 +31,53 @@ def dynamic_parse_ocr(image_pil, original_filename="unknown"):
         "signature": False,
     }
 
-    # Initialize parsed_data here with its default values
     parsed_data = initial_result.copy()
-
-    # Try to dynamically load the specific extractor module
-    extractor_module = None
-    if receipt_type and receipt_type != "generic":
-        try:
-            extractor_module = importlib.import_module(
-                f'{receipt_type}_extractor')
-            sys.stderr.write(
-                f"Successfully loaded extractor: {receipt_type}_extractor.py\n")
-        except ImportError:
-            sys.stderr.write(
-                f"Warning: Extractor module for '{receipt_type}' not found. Falling back to generic OCR.\n")
-        except Exception as e:
-            sys.stderr.write(
-                f"Error loading extractor module {receipt_type}_extractor: {e}. Falling back to generic OCR.\n")
-    else:
-        sys.stderr.write(
-            "Using generic OCR processing as no specific receipt_type provided.\n")
-
-    # Call the combined extraction function from the loaded extractor module ONLY if it exists
-    if extractor_module:
-        # The extractor_module.extract_data no longer returns debug_image_cv2
-        parsed_data, cleaned_extracted_text_for_matching = \
-            extractor_module.extract_data(
-                image_pil, original_filename, initial_result)  # Pass original_filename
-    else:
-        # Fallback for generic OCR if no specific extractor is found
-        img_np_fallback = np.array(image_pil)
-        img_cv_gray_fallback = cv2.cvtColor(
-            img_np_fallback, cv2.COLOR_RGB2GRAY)
-        # Use simple adaptive thresholding for generic fallback
-        img_thresh_fallback = cv2.adaptiveThreshold(img_cv_gray_fallback, 255,
-                                                    cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                                    cv2.THRESH_BINARY, 11, 2)
-        processed_image_for_ocr_fallback = Image.fromarray(img_thresh_fallback)
-
-        tesseract_config = r'--oem 1 --psm 3'  # Generic default PSM
-        data_fallback = pytesseract.image_to_data(
-            processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, output_type=pytesseract.Output.DICT, config=tesseract_config)
-        raw_ocr_text_fallback = pytesseract.image_to_string(
-            processed_image_for_ocr_fallback, lang=OCR_LANGUAGES, config=tesseract_config)
-        cleaned_extracted_text_for_matching = raw_ocr_text_fallback.replace(
-            ' ', '').lower()
-        sys.stderr.write(
-            "Falling back to generic OCR with basic processing.\n")
-
-    # Final cleanup: Change any remaining "N/A" to None for database compatibility
-    for field in parsed_data:
-        if parsed_data[field] == "N/A":
-            parsed_data[field] = None
-
-    # No debug_image_cv2 returned here
-    return parsed_data, cleaned_extracted_text_for_matching
-
-
-# --- Main script execution ---
-if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        sys.stderr.write(json.dumps(
-            {"error": "Missing arguments. Usage: python ocr_processor.py <receipt_type> <filename>"}) + "\n")
-        sys.exit(1)
-
-    receipt_type = sys.argv[1]
-    original_filename = sys.argv[2]  # Now passed to dynamic_parse_ocr
+    extracted_text = ""
 
     try:
-        # Read image bytes from stdin (as sent by Node.js multer)
+        # Pre-process image if needed (e.g., convert to grayscale)
+        image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
+        
+        # Get extracted text using Tesseract
+        extracted_text = pytesseract.image_to_string(image_cv2, lang=OCR_LANGUAGES).strip()
+
+        # Assuming a unified extractor for now, as receipt_type is removed
+        parsed_data = Extractor.extract_all(extracted_text)
+
+    except Exception as e:
+        sys.stderr.write(json.dumps(
+            {"error": f"Error during OCR processing: {str(e)}"}) + "\n")
+        return parsed_data, extracted_text
+
+    return parsed_data, extracted_text
+
+def main():
+    if len(sys.argv) < 2:
+        sys.stderr.write(json.dumps(
+            {"error": "Usage: python ocr_processor.py <filename>"}) + "\n")
+        sys.exit(1)
+
+    original_filename = sys.argv[1]
+
+    try:
+        # Read image bytes from stdin
         image_bytes = sys.stdin.buffer.read()
+        if not image_bytes:
+             raise ValueError("Input stream is empty. No image bytes were received.")
+        
         original_image_pil = Image.open(io.BytesIO(image_bytes))
 
-        # Perform dynamic OCR parsing and get the parsed data AND the globally cleaned extracted text
-        # debug_image_cv2 is no longer returned
-        parsed_data, extracted_text = dynamic_parse_ocr(original_image_pil,original_filename)
-        # Prepare the final result dictionary to be sent back to Node.js as JSON
+        # Perform dynamic OCR parsing
+        parsed_data, extracted_text = dynamic_parse_ocr(original_image_pil, original_filename)
+
+        # Prepare the final result dictionary
         result = {
             'message': 'Image processed dynamically!',
             'extracted_text': extracted_text,
             'parsed_data': parsed_data,
-            # 'debug_image_url': f'/processed_uploads/debug_dynamic_{receipt_type}_{original_filename}', # No debug image URL
             'status': 'complete'
         }
-        # Print the JSON result to stdout, which Node.js will capture
+        # Print the JSON result to stdout
         print(json.dumps(result))
 
     except pytesseract.TesseractNotFoundError:
@@ -126,5 +86,8 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         sys.stderr.write(json.dumps(
-            {"error": f"Dynamic OCR failed: {e}"}) + "\n")
+            {"error": f"An error occurred: {str(e)}"}) + "\n")
         sys.exit(1)
+
+if __name__ == '__main__':
+    main()
