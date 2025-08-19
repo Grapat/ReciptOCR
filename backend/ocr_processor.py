@@ -38,8 +38,17 @@ def dynamic_parse_ocr(image_pil, original_filename="unknown"):
         # Pre-process image if needed (e.g., convert to grayscale)
         image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
         
+        # Tesseract configuration for user-defined words
+        custom_config = r'--user-words dict.txt'
+
         # Get extracted text using Tesseract
-        extracted_text = pytesseract.image_to_string(image_cv2, lang=OCR_LANGUAGES).strip()
+        extracted_text = pytesseract.image_to_string(
+            image_pil, 
+            lang=OCR_LANGUAGES, 
+            config=custom_config
+        )
+        # Get extracted text using Tesseract
+        # extracted_text = pytesseract.image_to_string(image_cv2, lang=OCR_LANGUAGES).strip()
 
         # Assuming a unified extractor for now, as receipt_type is removed
         parsed_data = Extractor.extract_all(extracted_text)

@@ -139,7 +139,6 @@ function ScannerPage() {
 
     const formData = new FormData();
     formData.append('receipt_image', selectedFile);
-    // Removed formData.append('receipt_type', receiptType);
 
     try {
       const response = await fetch(`${API}/api/receipts/process-image`, {
@@ -155,20 +154,21 @@ function ScannerPage() {
       const result = await response.json();
       setExtractedText(result.extracted_text);
 
+      // Corrected mapping to use camelCase keys
       const mappedParsedData = {
         "dbReceiptId": result.parsed_data.db_receipt_id || '',
-        "plateNo": result.parsed_data.plate_no || '',
-        "gasProvider": result.parsed_data.gas_provider || '',
-        "transactionDate": result.parsed_data.transaction_date || '',
-        "taxInvNo": result.parsed_data.tax_inv_no || '',
-        "egatAddress": result.parsed_data.egat_address || '',
-        "egatTaxId": result.parsed_data.egat_tax_id || '',
+        "plateNo": result.parsed_data.plateNo || '',
+        "gasProvider": result.parsed_data.gasProvider || '',
+        "transactionDate": result.parsed_data.transactionDate || '',
+        "taxInvNo": result.parsed_data.taxInvNo || '',
+        "egatAddress": result.parsed_data.egatAddress || '',
+        "egatTaxId": result.parsed_data.egatTaxId || '',
         "milestone": result.parsed_data.milestone || '',
         "amount": result.parsed_data.amount || '',
         "liters": result.parsed_data.liters || '',
-        "pricePerLiter": result.parsed_data.price_per_liter || '',
+        "pricePerLiter": result.parsed_data.pricePerLiter || '',
         "VAT": result.parsed_data.VAT || '',
-        "gasType": result.parsed_data.gas_type || '',
+        "gasType": result.parsed_data.gasType || '',
         "original": result.parsed_data.original || false,
         "signature": result.parsed_data.signature || false,
         "rawExtractedText": result.extracted_text || '',
@@ -293,17 +293,17 @@ function ScannerPage() {
 
       const updatedMappedData = {
         dbReceiptId: result.receipt.id,
-        plateNo: result.receipt.plate_no || '',
-        transactionDate: result.receipt.transaction_date || '',
-        taxInvNo: result.receipt.tax_inv_no || '',
-        egatAddress: result.receipt.egat_address || '',
-        egatTaxId: result.receipt.egat_tax_id || '',
+        plateNo: result.receipt.plateNo || '',
+        transactionDate: result.receipt.transactionDate || '',
+        taxInvNo: result.receipt.taxInvNo || '',
+        egatAddress: result.receipt.egatAddress || '',
+        egatTaxId: result.receipt.egatTaxId || '',
         milestone: result.receipt.milestone || '',
         amount: result.receipt.amount || '',
         liters: result.receipt.liters || '',
-        pricePerLiter: result.receipt.price_per_liter || '',
+        pricePerLiter: result.receipt.pricePerLiter || '',
         VAT: result.receipt.VAT || '',
-        gasType: result.receipt.gas_type || '',
+        gasType: result.receipt.gasType || '',
         original: result.receipt.original || false,
         signature: result.receipt.signature || false,
         rawExtractedText: parsedData.rawExtractedText,

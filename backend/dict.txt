@@ -1,0 +1,37 @@
+BANGCHAK
+K.Bank
+DIESEL
+SALE
+POSTRAN
+LITER
+LITERS
+PRICE/LITER
+AMOUNT
+VAT
+TAX
+INVOICE
+RECEIPT
+TOTAL
+MILEAGE
+KM
+TAX ID
+CUSTOMER
+ADDRESS
+SIGNATURE
+ORIGINAL
+NO REFUND
+ใบเสร็จรับเงิน
+ใบกำกับภาษี
+บางจาก
+ดีเซล
+บาท
+จำนวนลิตร
+จำนวนเงิน
+ราคา/ลิตร
+รวม
+รวมเงิน
+เลขทะเบียน
+ไมล์สะสม
+ลูกค้า
+ที่อยู่
+เลขประจำตัวผู้เสียภาษีอากร

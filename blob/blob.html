@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Blob Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Image to Blob Converter</h1>
+        <p class="text-center text-gray-600 mb-8">This tool converts an image to a binary blob and offers different
+            download options.</p>
+
+        <!-- Image and Buttons Section -->
+        <div class="flex flex-col items-center space-y-6">
+            <!-- Image Container -->
+            <div class="w-full max-w-sm border-4 border-gray-200 rounded-xl overflow-hidden shadow-md">
+                <img id="myImage" src="https://placehold.co/600x400/2962ff/ffffff?text=Your+Image"
+                    alt="Placeholder image" class="w-full h-auto">
+            </div>
+
+            <!-- File Input -->
+            <input type="file" id="imageInput" accept="image/*" class="w-full md:w-auto text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100
+                hover:cursor-pointer
+            ">
+
+            <button id="convertBtn"
+                class="w-full md:w-auto px-8 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-300 transform hover:scale-105">
+                Convert to Blob
+            </button>
+        </div>
+
+        <!-- Result Section -->
+        <div id="resultSection" class="mt-12 hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Conversion Result</h2>
+            <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                <p class="text-gray-600 mb-2">Blob Size: <span id="blobSize" class="font-medium text-gray-800"></span>
+                    bytes</p>
+                <p class="text-gray-600 mb-2">Blob Type: <span id="blobType" class="font-medium text-gray-800"></span>
+                </p>
+
+                <h3 class="text-lg font-medium text-gray-700 mt-4 mb-2">Blob URL:</h3>
+                <div class="relative">
+                    <input type="text" id="blobUrlInput" readonly
+                        class="w-full bg-white p-3 pr-16 rounded-md border border-gray-300 text-gray-700 font-mono text-sm">
+                    <button id="copyBtn"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gray-200 rounded-md text-gray-600 hover:bg-gray-300 transition-colors duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path
+                                d="M7.707 5.293a1 1 0 010 1.414L5.414 8H17a1 1 0 110 2H5.414l2.293 2.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                                clip-rule="evenodd" fill-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="downloadLinks" class="mt-4 flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
+                    <a href="#" class="download-link text-blue-600 hover:underline font-medium" data-mime="image/png"
+                        data-filename="image.png">Download as PNG</a>
+                    <a href="#" class="download-link text-blue-600 hover:underline font-medium" data-mime="image/jpeg"
+                        data-filename="image.jpeg">Download as JPEG</a>
+                    <a href="#" class="download-link text-blue-600 hover:underline font-medium"
+                        data-mime="application/octet-stream" data-filename="image.bin">Download Binary Data (.bin)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageInput = document.getElementById('imageInput');
+            const myImage = document.getElementById('myImage');
+            const resultSection = document.getElementById('resultSection');
+            const blobSizeSpan = document.getElementById('blobSize');
+            const blobTypeSpan = document.getElementById('blobType');
+            const blobUrlInput = document.getElementById('blobUrlInput');
+            const copyBtn = document.getElementById('copyBtn');
+            const downloadLinks = document.querySelectorAll('.download-link');
+            const convertBtn = document.getElementById('convertBtn');
+            let currentBlobUrls = {}; // Use an object to store multiple URLs
+
+            // Listen for a change in the file input
+            imageInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        myImage.src = event.target.result;
+                        resultSection.classList.add('hidden');
+                        // Revoke old URLs to prevent memory leaks
+                        for (const url in currentBlobUrls) {
+                            URL.revokeObjectURL(currentBlobUrls[url]);
+                        }
+                        currentBlobUrls = {};
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Handle blob conversion on button click
+            convertBtn.addEventListener('click', () => {
+                const imageElement = document.getElementById('myImage');
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+
+                canvas.width = imageElement.naturalWidth;
+                canvas.height = imageElement.naturalHeight;
+                ctx.drawImage(imageElement, 0, 0);
+
+                // For each download link, create a blob and a URL
+                downloadLinks.forEach(link => {
+                    const mimeType = link.getAttribute('data-mime');
+                    const filename = link.getAttribute('data-filename');
+
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            // Update UI with first blob's info
+                            if (mimeType === 'image/png') {
+                                resultSection.classList.remove('hidden');
+                                blobSizeSpan.textContent = blob.size;
+                                blobTypeSpan.textContent = blob.type;
+                                const blobUrl = URL.createObjectURL(blob);
+                                blobUrlInput.value = blobUrl;
+                                currentBlobUrls['display'] = blobUrl;
+                            }
+
+                            // Create and store the URL for this specific link
+                            const url = URL.createObjectURL(blob);
+                            link.href = url;
+                            link.download = filename;
+                            currentBlobUrls[filename] = url;
+                        } else {
+                            console.error(`Failed to create blob for ${mimeType}.`);
+                        }
+                    }, mimeType);
+                });
+            });
+
+            // Copy the blob URL to the clipboard
+            copyBtn.addEventListener('click', () => {
+                blobUrlInput.select();
+                document.execCommand('copy');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M7.707 5.293a1 1 0 010 1.414L5.414 8H17a1 1 0 110 2H5.414l2.293 2.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" fill-rule="evenodd"></path>
+                        </svg>
+                    `;
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+
+</html>

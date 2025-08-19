@@ -18,7 +18,7 @@ exports.processReceipt = async (req, res) => {
   const originalFilename = req.file.originalname;
 
   try {
-    // Step 1: Upload the image to the PHP API
+    /* Step 1: Upload the image to the PHP API
     const formData = new FormData();
     formData.append("image", receiptImageBuffer, {
       filename: originalFilename,
@@ -32,7 +32,7 @@ exports.processReceipt = async (req, res) => {
     const imageUrl = uploadResponse.data.imageUrl;
     console.log(`Image uploaded to PHP server: ${imageUrl}`);
 
-    // Spawn the Python process with the correct arguments
+    */ //Spawn the Python process with the correct arguments
     const pythonProcess = spawn("python", [
       path.join(__dirname, "..", "ocr_processor.py"),
       originalFilename,
@@ -70,6 +70,7 @@ exports.processReceipt = async (req, res) => {
         });
 
         // Respond to client
+        console.log("Receipt saved to database:", parsedResult.parsed_data);
         res.status(200).json({
           message: "Receipt processed and saved successfully!",
           extracted_text: parsedResult.extracted_text,
