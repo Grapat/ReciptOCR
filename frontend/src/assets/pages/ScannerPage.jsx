@@ -156,7 +156,7 @@ function ScannerPage() {
 
       // Corrected mapping to use camelCase keys
       const mappedParsedData = {
-        "dbReceiptId": result.parsed_data.db_receipt_id || '',
+        "dbReceiptId": result.db_receipt_id || '',
         "plateNo": result.parsed_data.plateNo || '',
         "gasProvider": result.parsed_data.gasProvider || '',
         "transactionDate": result.parsed_data.transactionDate || '',
@@ -247,14 +247,15 @@ function ScannerPage() {
       const validEgatAddrEng = master.egatAddressENG ? [master.egatAddressENG] : [];
       const validEgatTaxid = master.egatTaxId ? [master.egatTaxId] : [];
 
-      const isTHValid = validEgatAddrTH.some(addr => similarity(addr, editableFields.egatAddress) >= 0.8);
-      const isENGValid = validEgatAddrEng.some(addr => similarity(addr, editableFields.egatAddress) >= 0.8);
+      /*const isTHValid = validEgatAddrTH.some(addr => similarity(addr, editableFields.egatAddress) >= 0.2);
+      const isENGValid = validEgatAddrEng.some(addr => similarity(addr, editableFields.egatAddress) >= 0.2);
 
       if (!isTHValid && !isENGValid) {
         setStatusMessage('Error: EGAT address is not valid enough (need at least 80% match).');
         setIsError(true);
         return;
-      }
+      } */
+
       if (!validEgatTaxid.includes(editableFields.egatTaxId)) {
         setStatusMessage('Error: Invalid EGAT tax id.');
         setIsError(true);

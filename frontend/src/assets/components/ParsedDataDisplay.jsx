@@ -13,6 +13,14 @@ const ParsedDataDisplay = ({ editableFields, handleFieldChange }) => {
                 <input type="text" id="transactionDate" name="transactionDate" className="form-input" value={editableFields.transactionDate || ''} onChange={handleFieldChange} />
             </div>
             <div className="form-group">
+                <label htmlFor="egatAddress" className="form-label">ที่อยู่EGAT:</label>
+                <input type="text" id="egatAddress" name="egatAddress" className="form-input" value={editableFields.egatAddress || ''} onChange={handleFieldChange} />
+            </div>
+            <div className="form-group">
+                <label htmlFor="egatTaxId" className="form-label">รหัสผู้เสียภาษีของ EGAT:</label>
+                <input type="text" id="egatTaxId" name="egatTaxId" className="form-input" value={editableFields.egatTaxId || ''} onChange={handleFieldChange} />
+            </div>
+            <div className="form-group">
                 <label htmlFor="amount" className="form-label">จำนวนเงิน:</label>
                 <input type="text" id="amount" name="amount" className="form-input" value={editableFields.amount || ''} onChange={handleFieldChange} />
             </div>
@@ -43,14 +51,6 @@ const ParsedDataDisplay = ({ editableFields, handleFieldChange }) => {
             <div className="form-group">
                 <label htmlFor="taxInvNo" className="form-label">หมายเลขใบเสร็จ:</label>
                 <input type="text" id="taxInvNo" name="taxInvNo" className="form-input" value={editableFields.taxInvNo || ''} onChange={handleFieldChange} />
-            </div>
-            <div className="form-group">
-                <label htmlFor="egatAddress" className="form-label">ที่อยู่EGAT:</label>
-                <input type="text" id="egatAddress" name="egatAddress" className="form-input" value={editableFields.egatAddress || ''} onChange={handleFieldChange} />
-            </div>
-            <div className="form-group">
-                <label htmlFor="egatTaxId" className="form-label">รหัสผู้เสียภาษีของ EGAT:</label>
-                <input type="text" id="egatTaxId" name="egatTaxId" className="form-input" value={editableFields.egatTaxId || ''} onChange={handleFieldChange} />
             </div>
             <div className="form-group">
                 <label htmlFor="original" className="form-label">ต้นฉบับ:</label>

@@ -6,12 +6,23 @@ import json
 import importlib
 import cv2
 import numpy as np
+import re  # Ensure you have this import
 
 # Assuming the Extractor module is in the same directory
 import Extractor
 
 # OCR Language Setting (Thai and English)
 OCR_LANGUAGES = 'eng+tha'
+
+# New function to clean the extracted text
+def clean_text(text):
+    # Remove control characters and other non-printable characters
+    cleaned_text = re.sub(r'[\x00-\x1F\x7F]', '', text)
+    # Normalize unicode characters to handle common OCR errors
+    cleaned_text = cleaned_text.replace('’', "'").replace('“', '"').replace('”', '"')
+    # Remove all spaces and other whitespace characters
+    cleaned_text = re.sub(r'\s+', '', cleaned_text).strip()
+    return cleaned_text
 
 def dynamic_parse_ocr(image_pil, original_filename="unknown"):
     initial_result = {
@@ -39,11 +50,11 @@ def dynamic_parse_ocr(image_pil, original_filename="unknown"):
         image_cv2 = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
         
         # Tesseract configuration for user-defined words
-        custom_config = r'--user-words dict.txt'
+        custom_config = r'--user-words dict.txt --user-patterns patterns.txt'
 
         # Get extracted text using Tesseract
         extracted_text = pytesseract.image_to_string(
-            image_pil, 
+            image_pil,
             lang=OCR_LANGUAGES, 
             config=custom_config
         )
@@ -57,7 +68,6 @@ def dynamic_parse_ocr(image_pil, original_filename="unknown"):
         sys.stderr.write(json.dumps(
             {"error": f"Error during OCR processing: {str(e)}"}) + "\n")
         return parsed_data, extracted_text
-
     return parsed_data, extracted_text
 
 def main():

@@ -143,12 +143,12 @@ function AdminPage() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Merchant Name</th>
                 <th>Date</th>
                 <th>Amount</th>
                 <th>Gas Provider</th>
                 <th>Receipt No.</th>
                 <th>Plate No.</th>
+                <th>milestone</th>
                 <th>Gas Type</th>
                 <th>Actions</th>
               </tr>
@@ -161,13 +161,13 @@ function AdminPage() {
               ) : (
                 filteredReceipts.map((receipt) => (
                   <tr key={receipt.id}>
-                    <td>{receipt.id.substring(0, 8)}...</td>
-                    <td>{receipt.merchantName || 'N/A'}</td>
+                    <td>{String(receipt.id).substring(0, 8)}...</td>
                     <td>{receipt.transactionDate ? new Date(receipt.transactionDate).toLocaleDateString('th-TH') : 'N/A'}</td>
                     <td>{receipt.amount !== null ? parseFloat(receipt.amount).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</td>
                     <td>{receipt.gasProvider || 'N/A'}</td>
-                    <td>{receipt.receiptNo || 'N/A'}</td>
+                    <td>{receipt.taxInvNo || 'N/A'}</td>
                     <td>{receipt.plateNo || 'N/A'}</td>
+                    <td>{receipt.milestone || 'N/A'}</td>
                     <td>{receipt.gasType || 'N/A'}</td>
                     <td className="actions-cell">
                       <button onClick={() => handleEditReceipt(receipt.id)} className="action-button edit-button">Edit</button>

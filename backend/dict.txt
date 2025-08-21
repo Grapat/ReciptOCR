@@ -1,37 +1,23 @@
 BANGCHAK
-K.Bank
-DIESEL
-SALE
-POSTRAN
+OR
+PTT
+DATE
+ทะเบียนรถ
+(KM)
+HI DIESEL
+BTH/LTR
 LITER
-LITERS
-PRICE/LITER
-AMOUNT
 VAT
-TAX
-INVOICE
-RECEIPT
-TOTAL
-MILEAGE
-KM
-TAX ID
-CUSTOMER
-ADDRESS
-SIGNATURE
-ORIGINAL
-NO REFUND
-ใบเสร็จรับเงิน
-ใบกำกับภาษี
-บางจาก
-ดีเซล
-บาท
-จำนวนลิตร
-จำนวนเงิน
-ราคา/ลิตร
-รวม
-รวมเงิน
-เลขทะเบียน
-ไมล์สะสม
-ลูกค้า
+THB
+TAX INV NO.
+TOTAL THB
+ELECTRICITY
+TAX ID.
+การไฟฟ้าฝ่ายผลิต
+เลขประจำตัวผู้เสียภาษี
+เลขที่ใบกำกับภาษี
 ที่อยู่
-เลขประจำตัวผู้เสียภาษีอากร
+วันที่ขาย
+รวมเป็นเงิน
+VAT 7%
+ฉบับเดิมเลขที่
