@@ -61,14 +61,17 @@ def dynamic_parse_ocr(image_pil, original_filename="unknown"):
         # Get extracted text using Tesseract
         # extracted_text = pytesseract.image_to_string(image_cv2, lang=OCR_LANGUAGES).strip()
 
-        # Assuming a unified extractor for now, as receipt_type is removed
-        parsed_data = Extractor.extract_all(extracted_text)
+        # Apply the cleaning function to the raw extracted text
+        cleaned_text = clean_text(extracted_text)
 
+        # Pass the cleaned text to the extractor
+        parsed_data = Extractor.extract_all(cleaned_text)
+
+        return parsed_data, cleaned_text
     except Exception as e:
         sys.stderr.write(json.dumps(
             {"error": f"Error during OCR processing: {str(e)}"}) + "\n")
         return parsed_data, extracted_text
-    return parsed_data, extracted_text
 
 def main():
     if len(sys.argv) < 2:
